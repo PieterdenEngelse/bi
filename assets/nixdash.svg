@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>nixdash</title>
+  <!--
+    The WebAssembly mark, redrawn.
+
+    Everything is a path: the letterforms are stroked polylines rather than
+    <text>, so the icon renders identically regardless of which fonts are
+    installed. A themed icon that silently falls back to a different typeface
+    on another machine is a bad icon.
+
+    #654FF0 is the WebAssembly brand purple. The notch in the top edge is part
+    of the mark, not a rendering artefact.
+  -->
+  <path fill="#654FF0" d="
+    M 112,16
+    L 216,16 L 216,72 L 296,72 L 296,16 L 400,16
+    A 96,96 0 0 1 496,112
+    L 496,400
+    A 96,96 0 0 1 400,496
+    L 112,496
+    A 96,96 0 0 1 16,400
+    L 16,112
+    A 96,96 0 0 1 112,16
+    Z" />
+
+  <!--
+    WA monogram. stroke-linejoin:miter keeps the vertices sharp at size.
+
+    Sits slightly below the square's centre rather than on it: the notch eats
+    into the top edge, so optically centring against the remaining mass means
+    dropping a little. The crossbar is low on the A and nearly as thick as the
+    legs - at 24px in a panel a delicate crossbar just disappears.
+  -->
+  <g fill="none" stroke="#ffffff" stroke-width="34"
+     stroke-linecap="butt" stroke-linejoin="miter">
+    <!-- W -->
+    <path d="M 116,224 L 154,360 L 184,278 L 214,360 L 252,224" />
+    <!--
+      A. The base is wide on purpose. With a 34px stroke a narrower A closes
+      its own counter well above the crossbar and reads as a solid wedge - the
+      letter disappears and you are left with a blob.
+    -->
+    <path d="M 284,360 L 340,224 L 396,360" />
+    <!-- Crossbar, spanning leg centre to leg centre at this height. -->
+    <path d="M 302,316 L 378,316" />
+  </g>
+</svg>

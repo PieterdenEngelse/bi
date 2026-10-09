@@ -1,0 +1,16 @@
+[package]
+name = "nixdash_ui_wasm"
+version = "0.1.0"
+edition = "2021"
+
+# CMake/corrosion links this into the Qt executable.
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+cxx = "1.0"
+cxx-qt = "0.10"
+cxx-qt-lib = { version = "0.10", features = ["qt_full"] }
+
+[build-dependencies]
+cxx-qt-build = "0.10"

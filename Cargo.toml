@@ -1,0 +1,5 @@
+[workspace]
+members = ["engine", "ui"]
+# Built by corrosion for wasm32-unknown-emscripten, never for the host.
+exclude = ["ui-wasm/rust"]
+resolver = "2"

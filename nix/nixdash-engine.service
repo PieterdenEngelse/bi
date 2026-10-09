@@ -1,0 +1,27 @@
+# systemd user unit. Install to ~/.config/systemd/user/ for now; phase 5
+# replaces this with a home-manager module that writes it declaratively.
+#
+# Deliberately a *user* unit: the engine runs as you, with no privilege, and
+# collects only what you can already read.
+[Unit]
+Description=nixdash engine (NixOS monitoring, loopback only)
+Documentation=https://github.com/%u/nixdash
+
+[Service]
+Type=simple
+ExecStart=%h/Projects/nixdash/target/release/nixdash-engine
+Environment=NIXDASH_PORT=3100
+Restart=on-failure
+RestartSec=5s
+
+# It needs no privilege, so take it away.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_UNIX
+
+[Install]
+WantedBy=default.target

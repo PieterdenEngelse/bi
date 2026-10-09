@@ -1,0 +1,316 @@
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
+use http_body_util::BodyExt;
+use nixdash_engine::{router, Registry};
+use serde_json::Value;
+use tower::ServiceExt;
+
+async fn get(registry: Registry, uri: &str) -> (StatusCode, Value) {
+    let res = router(registry)
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    let status = res.status();
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let body = if bytes.is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_slice(&bytes).unwrap()
+    };
+    (status, body)
+}
+
+/// POST with no body - the run endpoint takes everything from the path.
+///
+/// Deliberately never posts to an action that would actually execute
+/// something: these tests run on a real machine, and a test suite that
+/// collects garbage or starts a rebuild would be a hazard, not a test.
+async fn post(registry: Registry, uri: &str) -> (StatusCode, Value) {
+    let res = router(registry)
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(uri)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    let status = res.status();
+    let bytes = res.into_body().collect().await.unwrap().to_bytes();
+    let body = if bytes.is_empty() {
+        Value::Null
+    } else {
+        serde_json::from_slice(&bytes).unwrap()
+    };
+    (status, body)
+}
+
+fn sampled() -> Registry {
+    let r = Registry::with_default_collectors();
+    r.tick_all();
+    r
+}
+
+#[tokio::test]
+async fn health_is_ok() {
+    let (status, body) = get(Registry::with_default_collectors(), "/health").await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["status"], "ok");
+}
+
+#[tokio::test]
+async fn lists_both_default_panels() {
+    let (status, body) = get(sampled(), "/api/panels").await;
+    assert_eq!(status, StatusCode::OK);
+    let ids: Vec<&str> = body["panels"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|p| p["id"].as_str().unwrap())
+        .collect();
+    assert!(ids.contains(&"memory"), "got {ids:?}");
+    assert!(ids.contains(&"failed-units"), "got {ids:?}");
+}
+
+#[tokio::test]
+async fn memory_panel_has_a_real_reading() {
+    let (status, body) = get(sampled(), "/api/panels/memory").await;
+    assert_eq!(status, StatusCode::OK);
+    let samples = body["samples"].as_array().unwrap();
+    assert_eq!(samples.len(), 1);
+    let v = &samples[0]["value"];
+    assert!(v["total_kb"].as_u64().unwrap() > 0);
+    assert!(v["available_kb"].as_u64().unwrap() > 0);
+    assert!(samples[0]["at"].as_u64().unwrap() > 0);
+}
+
+#[tokio::test]
+async fn history_respects_limit() {
+    let r = sampled();
+    for _ in 0..5 {
+        r.tick_all();
+    }
+    let (_, body) = get(r, "/api/panels/memory?limit=3").await;
+    assert_eq!(body["samples"].as_array().unwrap().len(), 3);
+}
+
+#[tokio::test]
+async fn unknown_panel_is_404() {
+    let (status, body) = get(sampled(), "/api/panels/nope").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert!(body["error"].as_str().unwrap().contains("nope"));
+}
+
+#[tokio::test]
+async fn actions_endpoint_reports() {
+    let (status, body) = get(sampled(), "/api/actions").await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(body["actions"].is_array(), "got {body}");
+    assert!(body["errors"].is_array());
+
+    // Every action must be self-describing: a command with no stated reason,
+    // mechanism or consequences is exactly what this design exists to prevent.
+    for a in body["actions"].as_array().unwrap() {
+        let id = a["id"].as_str().unwrap();
+        assert!(!a["title"].as_str().unwrap().is_empty());
+        assert!(!a["why"].as_str().unwrap().is_empty(), "action {id} has no why");
+        assert!(!a["command"].as_str().unwrap().is_empty());
+        assert!(!a["effects"].as_array().unwrap().is_empty(), "action {id} has no effects");
+        assert!(
+            ["nixos", "qt", "rust"].contains(&a["subject"].as_str().unwrap_or("")),
+            "action {id} has no valid subject"
+        );
+        assert!(
+            ["shell", "nix"].contains(&a["kind"].as_str().unwrap_or("")),
+            "action {id} has no valid kind"
+        );
+        for field in ["what", "if_wrong"] {
+            let text = a["info"][field].as_str().unwrap_or("");
+            assert!(
+                text.len() > 30,
+                "action {id}: info.{field} is {} chars - explain the mechanism \
+                 and the risk, not the label",
+                text.len()
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn gc_action_is_always_offered_on_nixos() {
+    let (_, body) = get(sampled(), "/api/actions").await;
+    let ids: Vec<&str> = body["actions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|a| a["id"].as_str().unwrap())
+        .collect();
+    assert!(ids.contains(&"gc-store"), "got {ids:?}");
+}
+
+/// The engine must never grow a way to execute what it suggests.
+#[tokio::test]
+async fn unknown_actions_cannot_be_run() {
+    // Actions are derived from live state, so ids come and go. An id that is
+    // not currently offered must not be executable by any route.
+    let (status, _) = post(sampled(), "/api/actions/no-such-action/run").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn the_run_endpoint_takes_no_command_from_the_caller() {
+    // There is exactly one way in: name an action. If a caller could ever
+    // smuggle a program or an argument through the URL, the fixed set of
+    // things the engine can execute would stop being fixed.
+    for uri in [
+        "/api/actions/run",
+        "/api/actions/gc-store;id/run",
+        "/api/actions/..%2F..%2Fbin%2Fsh/run",
+    ] {
+        let (status, _) = post(sampled(), uri).await;
+        assert!(
+            status == StatusCode::NOT_FOUND || status == StatusCode::METHOD_NOT_ALLOWED,
+            "{uri} returned {status}"
+        );
+    }
+}
+
+/// Nix snippets are configuration, not commands.
+///
+/// Running one would be nonsense, and the failure has to be explicit rather
+/// than the engine improvising something from the snippet text.
+#[tokio::test]
+async fn nix_snippets_are_offered_but_not_runnable() {
+    let (_, body) = get(sampled(), "/api/actions").await;
+    let actions = body["actions"].as_array().unwrap();
+
+    let mut checked = 0;
+    for a in actions {
+        if a["kind"] != "nix" {
+            continue;
+        }
+        assert!(
+            a["run"].is_null(),
+            "{} is a nix snippet but carries a run command",
+            a["id"]
+        );
+        let id = a["id"].as_str().unwrap();
+        let (status, body) = post(sampled(), &format!("/api/actions/{id}/run")).await;
+        assert_eq!(
+            status,
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "{id} should refuse to run, got {status}"
+        );
+        assert!(body["error"].as_str().unwrap().contains("not something"));
+        checked += 1;
+    }
+    // The qt/rust providers are conditional on this machine's state, so an
+    // empty run is possible - say so rather than passing silently.
+    eprintln!("checked {checked} nix actions");
+}
+
+/// The thing that gets executed is never the thing that gets displayed.
+///
+/// `command` is prose for a human: multi-line, commented, often leading with a
+/// dry-run or an inspection step. Executing it would run the commentary and
+/// the alternatives along with the real thing. This test pins the separation
+/// so a later "simplification" that parses `command` fails loudly.
+#[tokio::test]
+async fn executable_commands_are_explicit_never_parsed_from_display_text() {
+    let (_, body) = get(sampled(), "/api/actions").await;
+
+    for a in body["actions"].as_array().unwrap() {
+        let Some(run) = a["run"].as_object() else { continue };
+        let id = a["id"].as_str().unwrap();
+        let program = run["program"].as_str().unwrap();
+
+        assert!(!program.is_empty(), "{id}: empty program");
+        // A program name, not a command line. Any of these would mean the
+        // display text had leaked into the execution path.
+        for bad in [' ', '\n', ';', '|', '&', '#'] {
+            assert!(
+                !program.contains(bad),
+                "{id}: program {program:?} contains {bad:?} - it must be one \
+                 executable, not a shell line"
+            );
+        }
+        // Escalation is pkexec's job, decided by `elevate`. An embedded sudo
+        // would want a tty this service does not have, and would hang.
+        assert_ne!(program, "sudo", "{id}: escalation must go through elevate");
+        assert!(
+            !run["args"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v.as_str() == Some("sudo")),
+            "{id}: sudo in args"
+        );
+
+        // needs_root is what the UI shows; elevate is what actually happens.
+        // If they disagree the UI is lying about whether you will be prompted.
+        assert_eq!(
+            a["needs_root"].as_bool().unwrap(),
+            run["elevate"].as_bool().unwrap(),
+            "{id}: needs_root disagrees with run.elevate"
+        );
+    }
+}
+
+/// Every panel, and every field it emits, must carry an explanation.
+///
+/// This is the `rn` rule - "adding a control, a stat or an automation step
+/// means adding its info panel in the same change, not as a follow-up task" -
+/// made enforceable. Without a test it decays the first time someone is in a
+/// hurry, and the explanations are the product, not decoration.
+#[tokio::test]
+async fn every_panel_and_stat_is_explained() {
+    let (_, body) = get(sampled(), "/api/panels").await;
+
+    for panel in body["panels"].as_array().unwrap() {
+        let id = panel["id"].as_str().unwrap();
+
+        for field in ["what", "why", "if_wrong"] {
+            let text = panel["info"][field].as_str().unwrap_or("");
+            assert!(!text.is_empty(), "panel {id}: info.{field} is empty");
+            // A label restated is not an explanation. Short text is the shape
+            // "Shows memory usage" takes, so it is worth failing on.
+            assert!(
+                text.len() > 30,
+                "panel {id}: info.{field} is {} chars - explain the mechanism, \
+                 not the label",
+                text.len()
+            );
+        }
+
+        let documented: Vec<&str> = panel["stats"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["key"].as_str().unwrap())
+            .collect();
+
+        for s in panel["stats"].as_array().unwrap() {
+            let key = s["key"].as_str().unwrap();
+            for field in ["what", "why", "if_wrong"] {
+                let text = s[field].as_str().unwrap_or("");
+                assert!(!text.is_empty(), "panel {id}, stat {key}: {field} is empty");
+            }
+        }
+
+        // Every key the collector actually emits needs an entry. Catches
+        // adding a field without explaining it, which is the usual way this
+        // rots.
+        if let Some(value) = panel["latest"]["value"].as_object() {
+            for key in value.keys() {
+                assert!(
+                    documented.contains(&key.as_str()),
+                    "panel {id}: emits '{key}' with no stat info - add one in \
+                     the same change"
+                );
+            }
+        }
+    }
+}
