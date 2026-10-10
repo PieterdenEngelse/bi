@@ -116,9 +116,15 @@ async fn actions_endpoint_reports() {
     for a in body["actions"].as_array().unwrap() {
         let id = a["id"].as_str().unwrap();
         assert!(!a["title"].as_str().unwrap().is_empty());
-        assert!(!a["why"].as_str().unwrap().is_empty(), "action {id} has no why");
+        assert!(
+            !a["why"].as_str().unwrap().is_empty(),
+            "action {id} has no why"
+        );
         assert!(!a["command"].as_str().unwrap().is_empty());
-        assert!(!a["effects"].as_array().unwrap().is_empty(), "action {id} has no effects");
+        assert!(
+            !a["effects"].as_array().unwrap().is_empty(),
+            "action {id} has no effects"
+        );
         assert!(
             ["nixos", "qt", "rust"].contains(&a["subject"].as_str().unwrap_or("")),
             "action {id} has no valid subject"
@@ -223,7 +229,9 @@ async fn executable_commands_are_explicit_never_parsed_from_display_text() {
     let (_, body) = get(sampled(), "/api/actions").await;
 
     for a in body["actions"].as_array().unwrap() {
-        let Some(run) = a["run"].as_object() else { continue };
+        let Some(run) = a["run"].as_object() else {
+            continue;
+        };
         let id = a["id"].as_str().unwrap();
         let program = run["program"].as_str().unwrap();
 
@@ -265,6 +273,102 @@ async fn executable_commands_are_explicit_never_parsed_from_display_text() {
 /// means adding its info panel in the same change, not as a follow-up task" -
 /// made enforceable. Without a test it decays the first time someone is in a
 /// hurry, and the explanations are the product, not decoration.
+#[tokio::test]
+async fn headlines_claim_only_what_was_measured() {
+    // The Qt panel once reported "no Qt in this environment" when it found no
+    // qmake - while being rendered by libQt6Qml, inside an app built with the
+    // very toolchain it was declaring absent. The Rust panel said the same
+    // thing about a compiled Rust binary.
+    //
+    // Both panels answer "could you BUILD here?", and the only thing either
+    // looks at is a build tool on PATH. Runtime libraries come from a
+    // binary's own Nix closure by RPATH and are never consulted. A headline
+    // that generalises a missing tool into a missing technology is not a
+    // wording nit: it teaches the reader a wrong model of how Nix resolves
+    // things, in an app whose whole purpose is explaining this machine.
+    let (_, body) = get(sampled(), "/api/panels").await;
+
+    for panel in body["panels"].as_array().unwrap() {
+        let id = panel["id"].as_str().unwrap();
+        let headline = panel["headline"].as_str().unwrap_or("");
+        for claim in ["no qt", "no rust", "qt is not", "rust is not"] {
+            assert!(
+                !claims_absence_of(headline, claim),
+                "panel {id} headline {headline:?} claims {claim:?}. Say which \
+                 TOOL or artefact is missing (qmake, rustc, the desktop UI) - \
+                 absence of a build tool is not absence of the technology."
+            );
+        }
+    }
+}
+
+/// The matcher has now been wrong in both directions - too loose, then too
+/// strict - so its own behaviour is pinned rather than left to be rediscovered
+/// the next time a headline is reworded.
+#[test]
+fn the_headline_matcher_distinguishes_a_claim_from_a_name() {
+    // Forbidden: generalising to the technology.
+    for bad in [
+        "no qt in this environment",
+        "no rust in this environment",
+        "no qt.",
+        "there is no rust",
+    ] {
+        let claim = if bad.contains("qt") {
+            "no qt"
+        } else {
+            "no rust"
+        };
+        assert!(claims_absence_of(bad, claim), "should be rejected: {bad:?}");
+    }
+    // Allowed: naming the specific thing that is missing.
+    for good in [
+        "no qmake on PATH - cannot tell whether a Qt build would work",
+        "no rustc on PATH - cannot tell whether a Rust build would work",
+        "1.95.0 · rust-analyzer cannot resolve std (no rust-src)",
+        "the desktop UI is not installed - nothing to inspect",
+    ] {
+        for claim in ["no qt", "no rust"] {
+            assert!(
+                !claims_absence_of(good, claim),
+                "should be accepted: {good:?} (tripped on {claim:?})"
+            );
+        }
+    }
+}
+
+/// Does `headline` make `claim` as a whole phrase?
+///
+/// Whole-word matching, not `contains`. A plain substring test rejects "no
+/// rustc on PATH" for containing "no rust" - a precise, correct headline
+/// failing the rule it actually satisfies. That very nearly shipped: the
+/// branch is only reached on a machine without rustc, which is neither this
+/// one nor the Nix build sandbox, so no amount of running the suite here
+/// would have found it.
+fn claims_absence_of(headline: &str, claim: &str) -> bool {
+    let lower = headline.to_lowercase();
+    let mut from = 0;
+    while let Some(idx) = lower[from..].find(claim) {
+        let start = from + idx;
+        let end = start + claim.len();
+        // The character after the match decides it: "no qt." or "no qt " is
+        // the forbidden claim, while "no rustc", "no rust-src" and
+        // "no qt-env" all name a specific thing. Hyphens and underscores
+        // continue a token - package and component names are full of them,
+        // and treating "no rust-src" as the claim "no rust" would reject the
+        // most precise wording available.
+        let continues = lower[end..]
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_alphanumeric() || c == '-' || c == '_');
+        if !continues {
+            return true;
+        }
+        from = end;
+    }
+    false
+}
+
 #[tokio::test]
 async fn every_panel_and_stat_is_explained() {
     let (_, body) = get(sampled(), "/api/panels").await;
