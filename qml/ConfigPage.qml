@@ -167,9 +167,17 @@ Item {
                 onChanged: root.ranAction()
             }
 
-            // The other writable section. Same arrangement: a generated file
-            // the app owns, never the hand-written flake beside it.
+            // The other writable sections, in order of how much they can
+            // affect: this project's shell, then the whole machine. Same
+            // arrangement throughout - a generated file the app owns, never
+            // the hand-written one beside it.
             DevShellSection {
+                width: parent.width
+                apiBase: root.apiBase
+                onChanged: root.ranAction()
+            }
+
+            SystemSection {
                 width: parent.width
                 apiBase: root.apiBase
                 onChanged: root.ranAction()
