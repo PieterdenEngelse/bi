@@ -21,7 +21,11 @@ Panel {
     readonly property var missing: value && value.tools_missing ? value.tools_missing : []
     readonly property var found: value && value.tools_found ? value.tools_found : []
 
-    readonly property string verdict: !present ? "No Qt on PATH or in QMAKE"
+    // Says "no qmake", never "no Qt". This panel looked for a build tool on
+    // PATH and found none; that says nothing about whether Qt is present, and
+    // the Qt runtime panel beside it usually proves it is. See
+    // headlines_claim_only_what_was_measured in the engine's tests.
+    readonly property string verdict: !present ? "No qmake here - cannot say whether a build would work"
                                     : complete ? "A cxx-qt build will work here"
                                     : "A cxx-qt build will FAIL here"
 

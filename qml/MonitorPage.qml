@@ -183,6 +183,64 @@ Item {
                             opacity: 0.6
                         }
 
+                        // The dot's rule is not visible from the dot. Sits
+                        // before the chevron so it does not read as part of
+                        // the "open this subject" affordance.
+                        InfoButton {
+                            Layout.alignment: Qt.AlignVCenter
+                            title: modelData.name + " card"
+                            what: "One row per subject. The dot is that \
+subject's <b>worst</b> panel - not an average, not a count. One bad panel \
+among four still shows red. The line beside it lists every panel's headline, \
+worst first, and the count on the right is how many actions that subject is \
+currently offering."
+                            why: "Averaging would let a full disk hide behind \
+three healthy panels, which is the one thing a dashboard must never do. \
+Clicking the row opens that subject's panels, where every number carries its \
+own explanation."
+                            ifWrong: "<ul>\
+<li><b>A grey dot means 'could not look', not 'fine'.</b> The engine failed \
+to read something, which is different from finding nothing wrong.</li>\
+<li><b>Red with a reassuring headline.</b> The headline is worst-first, but \
+it is one line - open the subject to see the panel that is actually \
+unhappy.</li>\
+<li><b>Nothing here at all.</b> If every card is grey and the address in the \
+header is red, the window is not reaching the engine.</li></ul>"
+                            sections: [
+                                { title: "The colours", body: "\
+<table cellpadding='5'>\
+<tr><td><b>Green</b> - ok</td><td>Nothing to do. Most of the time every card \
+should be this, which is the point of the page.</td></tr>\
+<tr><td><b>Amber</b> - warn</td><td>Drifting, and worth dealing with at a \
+time of your choosing. A disk past 85%, or a toolchain missing a target you \
+are not currently building for.</td></tr>\
+<tr><td><b>Red</b> - bad</td><td>Wrong now. A failed unit, a disk past 93%, a \
+Qt prefix that will break the next build.</td></tr>\
+<tr><td><b>Grey</b> - unknown</td><td>The engine could not measure it. \
+Deliberately <i>not</i> green: 'no failures found' and 'I could not look' are \
+different answers, and conflating them is how a monitor reassures you about \
+something it never checked.</td></tr>\
+</table><br>\
+The thresholds live in the engine, with the panel that owns them, so both \
+this window and the browser build show the same verdict. Each panel's own \
+info button gives its exact numbers." },
+                                { title: "What gets promoted", body: "\
+Anything at <b>needed</b> urgency is lifted out of these cards and shown \
+above them, in red, regardless of subject.<br><br>\
+A failed unit should not be something you find by clicking into NixOS. The \
+cards are for the healthy case; the strip above them is for the case where \
+you should stop reading and act.<br><br>\
+Actions carry one of three urgencies:<ul>\
+<li><b>needed</b> - something is wrong now. Promoted.</li>\
+<li><b>advised</b> - drifting; worth doing soon. Config edited but never \
+rebuilt, for instance.</li>\
+<li><b>routine</b> - offered, never nagged. Garbage collection is always \
+available and almost never urgent.</li></ul>\
+Sorting is by urgency, so routine maintenance can never push a real problem \
+down the list." }
+                            ]
+                        }
+
                         Label { text: "›"; font.pixelSize: 20; opacity: 0.4 }
                     }
                 }

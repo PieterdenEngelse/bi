@@ -81,9 +81,30 @@ Item {
                 ]
             }
 
+            // Two Qt sections, because there are two different Qts and
+            // conflating them is the mistake this app kept making itself: the
+            // one your programs RUN against, and the one you could BUILD
+            // with. They are found by completely different mechanisms.
             ConfigSection {
                 width: parent.width
-                title: "Qt"
+                title: "Qt — what is running"
+                rows: [
+                    { label: "Version in use", value: root.val("qt-runtime", "version"),
+                      source: "RPATH in the installed binary, not PATH" },
+                    { label: "Prefix", value: root.val("qt-runtime", "prefix"),
+                      source: "pkgs.qt6.env, via nix/ui.nix" },
+                    { label: "Merged environment", value: root.val("qt-runtime", "merged_env"),
+                      source: "required for QML and cxx-qt builds" },
+                    { label: "Modules linked", value: root.val("qt-runtime", "modules"),
+                      source: "" },
+                    { label: "Wrapped", value: root.val("qt-runtime", "wrapped"),
+                      source: "makeWrapper sets QT_PLUGIN_PATH / QML2_IMPORT_PATH" }
+                ]
+            }
+
+            ConfigSection {
+                width: parent.width
+                title: "Qt — what could build"
                 rows: [
                     { label: "qmake in use", value: root.val("qt", "qmake"),
                       source: root.val("qt", "source") },
@@ -97,6 +118,26 @@ Item {
 
             ConfigSection {
                 width: parent.width
+                title: "Qt — WebAssembly"
+                rows: [
+                    { label: "Browser UI built", value: root.val("qt-wasm", "built"),
+                      source: "ui-wasm/build.sh, inside nix develop .#wasm" },
+                    { label: "Up to date with qml/", value: root.val("qt-wasm", "stale") === "yes"
+                                                            ? "no" : root.val("qt-wasm", "stale"),
+                      source: root.val("qt-wasm", "newest_qml_file") },
+                    { label: "Qt for wasm", value: root.val("qt-wasm", "sdk_version"),
+                      source: root.val("qt-wasm", "sdk") },
+                    { label: "Same Qt as desktop", value: root.val("qt-wasm", "versions_match"),
+                      source: "" },
+                    { label: "Emscripten expected", value: root.val("qt-wasm", "emcc_recommended"),
+                      source: "pinned by this Qt; see ~/Projects/qt6-wasm" },
+                    { label: "Host Qt for codegen", value: root.val("qt-wasm", "host_env"),
+                      source: "QT_HOST_PATH - moc/rcc that run natively" }
+                ]
+            }
+
+            ConfigSection {
+                width: parent.width
                 title: "Rust"
                 rows: [
                     { label: "rustc", value: root.val("rust", "rustc"),
@@ -105,21 +146,25 @@ Item {
                     { label: "Installed targets", value: root.val("rust", "targets"),
                       source: "nixpkgs rustc, or a fenix toolchain in the devShell" },
                     { label: "lld available", value: root.val("rust", "lld_available"),
-                      source: "pkgs.lld in the devShell" }
+                      source: "pkgs.lld in the devShell" },
+                    { label: "Running build", value: root.val("rust-build", "deployed") === "yes"
+                                                     ? "deployed (store)" : "dev build",
+                      source: root.val("rust-build", "running_exe") },
+                    { label: "Current with source", value: root.val("rust-build", "stale") === "yes"
+                                                            ? "no" : "yes",
+                      source: root.val("rust-build", "newest_source_file") }
                 ]
             }
 
-            ConfigSection {
+            // The only editable section on this page. See its own info button
+            // for why these four are writable and nothing else is.
+            SettingsSection {
+                id: ownSettings
                 width: parent.width
-                title: "nixdash itself"
-                rows: [
-                    { label: "Engine address", value: root.apiBase,
-                      source: "services.nixdash.port" },
-                    { label: "Desktop UI", value: "installed",
-                      source: "services.nixdash.ui.enable" },
-                    { label: "Autostart", value: "see your home.nix",
-                      source: "services.nixdash.ui.autostart" }
-                ]
+                apiBase: root.apiBase
+                // A write makes a declared value differ from the running one,
+                // which is exactly when the Apply action appears.
+                onChanged: root.ranAction()
             }
 
             // Prepared changes, including the Nix snippets that fill the Qt and
