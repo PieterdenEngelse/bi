@@ -167,6 +167,14 @@ Item {
                 onChanged: root.ranAction()
             }
 
+            // The other writable section. Same arrangement: a generated file
+            // the app owns, never the hand-written flake beside it.
+            DevShellSection {
+                width: parent.width
+                apiBase: root.apiBase
+                onChanged: root.ranAction()
+            }
+
             // Prepared changes, including the Nix snippets that fill the Qt and
             // Rust gaps shown above - in the place you would look for them.
             ActionsPanel {
