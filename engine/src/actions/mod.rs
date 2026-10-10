@@ -20,7 +20,9 @@ pub mod qt;
 pub mod reboot;
 pub mod runner;
 pub mod rust;
+pub mod settings;
 pub mod units;
+pub mod wasm;
 
 use std::sync::Arc;
 
@@ -83,6 +85,10 @@ pub struct RunCommand {
     /// Run it under pkexec. The engine holds no privilege of its own; this
     /// asks polkit, which prompts you, and the prompt is the authorisation.
     pub elevate: bool,
+    /// Directory to run in. `None` means the service's own, which is not a
+    /// meaningful location - anything operating on a project must say where.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -149,11 +155,15 @@ impl Actions {
             Arc::new(qt::QtPrefix),
             Arc::new(rust::RustTargets),
             Arc::new(escalation::EscalationSelfTest),
+            Arc::new(wasm::WasmStale),
+            Arc::new(settings::UnappliedSettings),
         ])
     }
 
     pub fn new(providers: Vec<Arc<dyn ActionProvider>>) -> Self {
-        Self { providers: Arc::new(providers) }
+        Self {
+            providers: Arc::new(providers),
+        }
     }
 
     pub fn report(&self) -> ActionsReport {

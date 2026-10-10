@@ -54,7 +54,11 @@ impl ActionProvider for QtPrefix {
 
         let missing: Vec<String> = v["tools_missing"]
             .as_array()
-            .map(|a| a.iter().filter_map(|t| t.as_str().map(String::from)).collect())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|t| t.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
         Ok(vec![Action {

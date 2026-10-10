@@ -57,6 +57,7 @@ impl ActionProvider for RebootNeeded {
                 program: "systemctl".into(),
                 args: vec!["reboot".into()],
                 elevate: true,
+                cwd: None,
             }),
             effects: vec![
                 "Ends every running process and open session".into(),

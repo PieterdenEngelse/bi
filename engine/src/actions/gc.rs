@@ -53,6 +53,7 @@ impl ActionProvider for GarbageCollect {
                 program: "nix-collect-garbage".into(),
                 args: vec!["-d".into()],
                 elevate: true,
+                cwd: None,
             }),
             effects: vec![
                 "-d deletes ALL old generations - rollback targets disappear".into(),

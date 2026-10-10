@@ -107,7 +107,11 @@ pub fn run(cmd: &RunCommand) -> RunOutcome {
 
     tracing::info!(argv = ?argv, elevated = cmd.elevate, "running action");
 
-    let mut child = match Command::new(&argv[0])
+    let mut command = Command::new(&argv[0]);
+    if let Some(dir) = &cmd.cwd {
+        command.current_dir(dir);
+    }
+    let mut child = match command
         .args(&argv[1..])
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
@@ -201,6 +205,7 @@ mod tests {
             program: program.into(),
             args: args.iter().map(|s| s.to_string()).collect(),
             elevate,
+            cwd: None,
         }
     }
 
@@ -250,7 +255,11 @@ mod tests {
     fn arguments_are_not_shell_interpreted() {
         // A unit name is system-supplied. If argv went through a shell this
         // would run `touch`; passed to exec it is just a strange argument.
-        let out = run(&cmd("echo", &["; touch /tmp/nixdash-injection-canary"], false));
+        let out = run(&cmd(
+            "echo",
+            &["; touch /tmp/nixdash-injection-canary"],
+            false,
+        ));
         assert!(out.succeeded(), "{out:?}");
         assert!(out.stdout.contains("touch"), "argument should be literal");
         assert!(

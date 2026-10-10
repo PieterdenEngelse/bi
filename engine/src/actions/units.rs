@@ -31,7 +31,11 @@ impl ActionProvider for FailedUnits {
                     kind: ActionKind::Shell,
                     why: format!(
                         "{} unit is in a failed state{}.",
-                        if user_scope { "This user" } else { "This system" },
+                        if user_scope {
+                            "This user"
+                        } else {
+                            "This system"
+                        },
                         if u.description.is_empty() {
                             String::new()
                         } else {
@@ -68,6 +72,8 @@ impl ActionProvider for FailedUnits {
                             vec!["restart".into(), u.unit.clone()]
                         },
                         elevate: !user_scope,
+
+                        cwd: None,
                     }),
                     effects: vec![
                         format!("Restarts {} and anything bound to it", u.unit),

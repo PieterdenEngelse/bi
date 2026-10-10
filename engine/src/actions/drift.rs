@@ -87,6 +87,7 @@ impl ActionProvider for ConfigDrift {
                 program: "nixos-rebuild".into(),
                 args: vec!["switch".into()],
                 elevate: true,
+                cwd: None,
             }),
             effects: vec![
                 "Builds and activates a new generation".into(),

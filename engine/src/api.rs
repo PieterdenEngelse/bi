@@ -6,7 +6,7 @@ use axum::{
     Json, Router,
 };
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     trace::TraceLayer,
@@ -19,10 +19,20 @@ use crate::{actions::Actions, registry::Registry};
 pub struct AppState {
     pub registry: Registry,
     pub actions: Actions,
+    /// The port actually bound, so the settings endpoint can report what is
+    /// live alongside what is declared.
+    pub port: u16,
 }
 
 pub fn router(registry: Registry) -> Router {
-    router_with(AppState { registry, actions: Actions::with_defaults() })
+    router_with(AppState {
+        registry,
+        actions: Actions::with_defaults(),
+        port: std::env::var("NIXDASH_PORT")
+            .ok()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(3100),
+    })
 }
 
 /// Is this origin one of our own loopback UIs?
@@ -39,7 +49,9 @@ pub fn router(registry: Registry) -> Router {
 /// is served from a static server on another port, so an exact origin will not
 /// do - any loopback port, but only loopback.
 fn is_loopback_origin(origin: &HeaderValue) -> bool {
-    let Ok(origin) = origin.to_str() else { return false };
+    let Ok(origin) = origin.to_str() else {
+        return false;
+    };
     let Some(rest) = origin
         .strip_prefix("http://")
         .or_else(|| origin.strip_prefix("https://"))
@@ -72,6 +84,8 @@ pub fn router_with(state: AppState) -> Router {
         // axum 0.8 path params are {id}, not :id
         .route("/api/panels/{id}", get(panel_history))
         .route("/api/actions/{id}/run", post(run_action))
+        .route("/api/settings", get(list_settings).post(write_setting))
+        .route("/api/settings/preview", post(preview_setting))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state)
@@ -134,6 +148,124 @@ async fn run_action(
         "title": action.title,
         "outcome": outcome,
         "ok": outcome.succeeded(),
+    })))
+}
+
+/// A request to change one setting.
+///
+/// Note the contrast with the run endpoint, which deliberately takes **no**
+/// body at all. The difference is what the body can express: there, a body
+/// would widen the set of executable things beyond what the providers offer;
+/// here it names one key from a fixed list and a value that is range- or
+/// enum-checked before anything is written. The surface stays closed either
+/// way - this one just needs two words instead of one.
+#[derive(Debug, Deserialize)]
+pub struct SettingChange {
+    key: String,
+    value: crate::settings::SettingValue,
+}
+
+fn settings_file() -> Result<(std::path::PathBuf, String), ApiError> {
+    let path = crate::settings::settings_path()
+        .ok_or_else(|| ApiError::Internal("no HOME, cannot locate settings".into()))?;
+    // Absent is normal - nothing has been changed from the app yet - and must
+    // read as an empty declaration rather than an error.
+    let text = std::fs::read_to_string(&path).unwrap_or_default();
+    Ok((path, text))
+}
+
+/// Every setting the app may change, with what is declared and what is live.
+///
+/// Both are reported because on a declarative system they are genuinely two
+/// different facts, and the gap between them is the thing worth seeing: a
+/// value written here does nothing until the next `home-manager switch`.
+async fn list_settings(State(state): State<AppState>) -> Result<Json<serde_json::Value>, ApiError> {
+    let (path, text) = settings_file()?;
+    let declared = crate::settings::read_declared(&text);
+
+    let effective = json!({
+        "port": state.port,
+        "logLevel": std::env::var("RUST_LOG").unwrap_or_else(|_| "info".into()),
+    });
+
+    let settings: Vec<serde_json::Value> = crate::settings::known()
+        .into_iter()
+        .map(|s| {
+            let value = declared
+                .iter()
+                .find(|(k, _)| *k == s.key)
+                .map(|(_, v)| serde_json::to_value(v).unwrap_or(Value::Null))
+                .unwrap_or(Value::Null);
+            let mut obj = serde_json::to_value(&s).unwrap_or_else(|_| json!({}));
+            if let Some(map) = obj.as_object_mut() {
+                map.insert("declared".into(), value);
+            }
+            obj
+        })
+        .collect();
+
+    Ok(Json(json!({
+        "path": path.display().to_string(),
+        "exists": path.exists(),
+        "settings": settings,
+        "effective": effective,
+    })))
+}
+
+/// What a change would do, without doing it.
+async fn preview_setting(
+    Json(change): Json<SettingChange>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let (path, text) = settings_file()?;
+    let plan = crate::settings::plan(
+        &text,
+        &path.display().to_string(),
+        &change.key,
+        &change.value,
+    )
+    .map_err(|e| ApiError::NotRunnable(e.to_string()))?;
+    Ok(Json(
+        serde_json::to_value(plan).unwrap_or_else(|_| json!({})),
+    ))
+}
+
+/// Write one setting.
+///
+/// Writes the single file the engine owns, regenerated whole. It does not
+/// rebuild: the response says what still has to happen, because on this
+/// system writing Nix source and applying it are separate acts and conflating
+/// them would be the lie this page exists to avoid.
+async fn write_setting(
+    Json(change): Json<SettingChange>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let (path, text) = settings_file()?;
+    let plan = crate::settings::plan(
+        &text,
+        &path.display().to_string(),
+        &change.key,
+        &change.value,
+    )
+    .map_err(|e| ApiError::NotRunnable(e.to_string()))?;
+
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)
+            .map_err(|e| ApiError::Internal(format!("creating {}: {e}", dir.display())))?;
+    }
+    std::fs::write(&path, &plan.rendered)
+        .map_err(|e| ApiError::Internal(format!("writing {}: {e}", path.display())))?;
+
+    tracing::info!(key = %plan.key, path = %path.display(), "wrote setting");
+
+    Ok(Json(json!({
+        "written": true,
+        "path": path.display().to_string(),
+        "key": plan.key,
+        "from": plan.from,
+        "to": plan.to,
+        "diff": plan.diff,
+        "applied": false,
+        "next_step": "Run `home-manager switch`, then restart the engine. \
+                      Nothing has changed yet - this only edited Nix source.",
     })))
 }
 

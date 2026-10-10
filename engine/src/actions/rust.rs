@@ -3,7 +3,7 @@ use anyhow::Result;
 use super::{Action, ActionInfo, ActionKind, ActionProvider, Urgency};
 use crate::{
     collector::{Collector, Subject},
-    collectors::rust::RustCollector,
+    collectors::rust::{rust_src, which, RustCollector},
 };
 
 /// Nix snippets for Rust targets that are absent.
@@ -39,6 +39,40 @@ in
 pkgs.mkShell {
   packages = [ rustToolchain ];
 }"#;
+
+const RUST_SRC_SNIPPET: &str = r#"# Standard library sources, so rust-analyzer can resolve std.
+#
+# Installing rustc does NOT install these. rust-analyzer needs the source
+# text, not the compiled std it already has, and without it every std type
+# shows as unresolved while the LSP otherwise runs normally.
+#
+# System-wide, in /etc/nixos/configuration.nix - next to rustc:
+
+  environment.systemPackages = with pkgs; [
+    rustc
+    cargo
+    rust-analyzer
+    rustPlatform.rustLibSrc        # <- the sources
+  ];
+
+  environment.variables.RUST_SRC_PATH =
+    "${pkgs.rustPlatform.rustLibSrc}";
+
+# Or per-project, in a devShell - which is better if different projects
+# pin different toolchains:
+
+  devShells.default = pkgs.mkShell {
+    packages = with pkgs; [ rustc cargo rust-analyzer ];
+    RUST_SRC_PATH = "${pkgs.rustPlatform.rustLibSrc}";
+  };
+
+# With a fenix toolchain, ask for the component instead and it comes with
+# RUST_SRC_PATH already correct:
+#
+#   fenix.packages.${system}.stable.withComponents [
+#     "cargo" "rustc" "rust-src" "rust-analyzer"
+#   ]
+"#;
 
 const LLD_SNIPPET: &str = r#"# lld, for wasm32-unknown-unknown.
 #
@@ -121,6 +155,45 @@ impl ActionProvider for RustTargets {
                 effects: vec!["Changes only your dev shell".into()],
                 needs_root: false,
                 urgency: Urgency::Routine,
+            });
+        }
+
+        // rust-analyzer present but unable to resolve std. Raised only when
+        // rust-analyzer is actually installed: the sources are useless on
+        // their own, and suggesting them to someone with no LSP would be
+        // noise about a component they have no use for.
+        if which("rust-analyzer").is_some() && rust_src().is_none() {
+            out.push(Action {
+                id: "rust-src-missing".into(),
+                title: "rust-analyzer cannot resolve the standard library".into(),
+                subject: Subject::Rust,
+                kind: ActionKind::Nix,
+                why: "rust-analyzer is installed, but the standard library \
+                      SOURCES are not. Every Vec, String and Option will show \
+                      as unresolved in your editor while rust-analyzer itself \
+                      runs perfectly."
+                    .into(),
+                info: ActionInfo {
+                    what: "Adds the standard library sources - the rust-src \
+                           component - and points RUST_SRC_PATH at them. \
+                           rust-analyzer reads these to resolve std; the \
+                           compiled standard library it already has is not \
+                           enough, because the IDE needs the source text.",
+                    if_wrong: "This is easy to live with for a long time \
+                               without diagnosing, because nothing fails: \
+                               the LSP starts, runs, and simply reports std \
+                               types as unknown. It reads as 'rust-analyzer \
+                               is broken on NixOS' rather than as one missing \
+                               package.",
+                },
+                command: RUST_SRC_SNIPPET.into(),
+                run: None, // Nix snippet - paste and rebuild, nothing to run.
+                effects: vec![
+                    "Adds the rust-src component and sets RUST_SRC_PATH".into(),
+                    "Affects your editor only - no build behaviour changes".into(),
+                ],
+                needs_root: false,
+                urgency: Urgency::Advised,
             });
         }
 

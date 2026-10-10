@@ -28,9 +28,12 @@ impl ActionProvider for EscalationSelfTest {
     fn actions(&self) -> Result<Vec<Action>> {
         // pkexec is the mechanism; with no pkexec at all there is nothing to
         // test and the action would only be noise.
-        let has_pkexec = ["/run/wrappers/bin/pkexec", "/run/current-system/sw/bin/pkexec"]
-            .iter()
-            .any(|p| std::path::Path::new(p).exists());
+        let has_pkexec = [
+            "/run/wrappers/bin/pkexec",
+            "/run/current-system/sw/bin/pkexec",
+        ]
+        .iter()
+        .any(|p| std::path::Path::new(p).exists());
         if !has_pkexec {
             return Ok(Vec::new());
         }
@@ -56,12 +59,12 @@ impl ActionProvider for EscalationSelfTest {
                            stops setuid taking effect, and nothing else will \
                            escalate either.",
             },
-            command: "pkexec true   # succeeds silently; the prompt is the point"
-                .into(),
+            command: "pkexec true   # succeeds silently; the prompt is the point".into(),
             run: Some(RunCommand {
                 program: "true".into(),
                 args: vec![],
                 elevate: true,
+                cwd: None,
             }),
             effects: vec!["Nothing. It exists to prove the prompt works.".into()],
             needs_root: true,
@@ -80,9 +83,15 @@ mod tests {
         let Some(a) = actions.first() else {
             return; // no pkexec on this machine
         };
-        let run = a.run.as_ref().expect("must be runnable - that is the point");
+        let run = a
+            .run
+            .as_ref()
+            .expect("must be runnable - that is the point");
 
-        assert!(run.elevate, "a test of escalation that does not elevate is not one");
+        assert!(
+            run.elevate,
+            "a test of escalation that does not elevate is not one"
+        );
         assert!(
             run.args.is_empty(),
             "arguments would make it do something; it must not"
