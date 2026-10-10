@@ -21,6 +21,7 @@ pub mod reboot;
 pub mod runner;
 pub mod rust;
 pub mod settings;
+pub mod system;
 pub mod units;
 pub mod wasm;
 
@@ -157,6 +158,7 @@ impl Actions {
             Arc::new(escalation::EscalationSelfTest),
             Arc::new(wasm::WasmStale),
             Arc::new(settings::UnappliedSettings),
+            Arc::new(system::StagedSystemConfig),
         ])
     }
 

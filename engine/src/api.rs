@@ -87,6 +87,7 @@ pub fn router_with(state: AppState) -> Router {
         .route("/api/settings", get(list_settings).post(write_setting))
         .route("/api/settings/preview", post(preview_setting))
         .route("/api/devshell", get(list_devshell).post(toggle_devshell))
+        .route("/api/system", get(list_system).post(toggle_system))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state)
@@ -365,6 +366,117 @@ async fn toggle_devshell(
         "next_step": "Re-enter the development shell with `nix develop` for \
                       this to take effect. Nothing has changed in the shell \
                       you already have open.",
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SystemToggle {
+    key: String,
+    enabled: bool,
+}
+
+/// System additions, and how far along each one is.
+///
+/// Three states rather than two, because getting a file into /etc is a
+/// privileged step that happens separately: *staged* here, *installed* in
+/// /etc/nixos, *live* after a rebuild. Collapsing them would mean claiming a
+/// change that has not happened.
+async fn list_system(State(state): State<AppState>) -> Result<Json<serde_json::Value>, ApiError> {
+    let staged_path = crate::system::staged_path()
+        .ok_or_else(|| ApiError::Internal("no HOME, cannot stage".into()))?;
+    let staged_text = std::fs::read_to_string(&staged_path).unwrap_or_default();
+
+    let installed_path = crate::system::installed_path();
+    // Readable without privilege; only writing needs root.
+    let installed_text = std::fs::read_to_string(&installed_path).unwrap_or_default();
+
+    let staged = crate::system::read_enabled(&staged_text);
+    let installed = crate::system::read_enabled(&installed_text);
+
+    let panels = state.registry.summaries();
+    let live = |reference: &str| -> Value {
+        let Some((panel_id, stat)) = reference.split_once('.') else {
+            return Value::Null;
+        };
+        panels
+            .iter()
+            .find(|p| p.meta.id == panel_id)
+            .and_then(|p| p.latest.as_ref())
+            .map(|s| s.value[stat].clone())
+            .unwrap_or(Value::Null)
+    };
+
+    let entries: Vec<Value> = crate::system::known()
+        .into_iter()
+        .map(|e| {
+            let mut obj = serde_json::to_value(&e).unwrap_or_else(|_| json!({}));
+            if let Some(map) = obj.as_object_mut() {
+                map.insert(
+                    "staged".into(),
+                    Value::Bool(staged.iter().any(|k| k == e.key)),
+                );
+                map.insert(
+                    "installed".into(),
+                    Value::Bool(installed.iter().any(|k| k == e.key)),
+                );
+                map.insert("live".into(), live(e.verified_by));
+            }
+            obj
+        })
+        .collect();
+
+    Ok(Json(json!({
+        "staged_path": staged_path.display().to_string(),
+        "installed_path": installed_path.display().to_string(),
+        "installed_exists": installed_path.exists(),
+        // Whether configuration.nix actually imports the generated file.
+        // Without that line the file is inert, and saying so is better than
+        // letting someone wonder why a rebuild changed nothing.
+        "imported": std::fs::read_to_string("/etc/nixos/configuration.nix")
+            .map(|c| c.contains("nixdash-system.nix"))
+            .unwrap_or(false),
+        "entries": entries,
+    })))
+}
+
+/// Stage one system addition.
+///
+/// Writes only into the app's own directory in your home. Nothing here
+/// touches /etc - that is the install action, and its polkit prompt.
+async fn toggle_system(
+    Json(toggle): Json<SystemToggle>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let staged_path = crate::system::staged_path()
+        .ok_or_else(|| ApiError::Internal("no HOME, cannot stage".into()))?;
+    let current = std::fs::read_to_string(&staged_path).unwrap_or_default();
+
+    let plan = crate::system::plan(
+        &current,
+        &staged_path.display().to_string(),
+        &toggle.key,
+        toggle.enabled,
+    )
+    .map_err(|e| ApiError::NotRunnable(e.to_string()))?;
+
+    if let Some(dir) = staged_path.parent() {
+        std::fs::create_dir_all(dir)
+            .map_err(|e| ApiError::Internal(format!("creating {}: {e}", dir.display())))?;
+    }
+    std::fs::write(&staged_path, &plan.rendered)
+        .map_err(|e| ApiError::Internal(format!("writing {}: {e}", staged_path.display())))?;
+
+    tracing::info!(key = %plan.key, enabled = plan.enabled, "staged system addition");
+
+    Ok(Json(json!({
+        "staged": true,
+        "installed": false,
+        "path": plan.staged_path,
+        "key": plan.key,
+        "enabled": plan.enabled,
+        "diff": plan.diff,
+        "next_step": "Nothing under /etc has changed. An install action is \
+                      now offered; it asks polkit for permission to copy this \
+                      into /etc/nixos, and a rebuild applies it after that.",
     })))
 }
 

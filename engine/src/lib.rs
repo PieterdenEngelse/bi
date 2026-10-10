@@ -5,6 +5,7 @@ pub mod collectors;
 pub mod devshell;
 pub mod registry;
 pub mod settings;
+pub mod system;
 
 pub use actions::Actions;
 pub use api::router;
