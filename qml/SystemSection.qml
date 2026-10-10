@@ -254,6 +254,19 @@ project, and the system one covers everywhere else." }
                     Layout.preferredWidth: 250
                 }
 
+                // [label] [control] [info], the same rhythm as every other
+                // writable row.
+                Switch {
+                    checked: modelData.staged === true
+                    // Never disabled while saving - see DevShellSection. This
+                    // one only writes a file in your home, so an extra toggle
+                    // costs nothing; the privileged step is a separate action.
+                    // onToggled, not onCheckedChanged: the latter fires when
+                    // the binding refreshes after a reload and would write
+                    // back what was just read.
+                    onToggled: root.toggle(modelData.key, checked)
+                }
+
                 InfoButton {
                     Layout.alignment: Qt.AlignVCenter
                     title: modelData.label
@@ -262,20 +275,13 @@ project, and the system one covers everywhere else." }
                     ifWrong: modelData.if_wrong
                 }
 
-                Switch {
-                    checked: modelData.staged === true
-                    enabled: !(root.busy[modelData.key] === true)
-                    // onToggled, not onCheckedChanged: the latter fires when
-                    // the binding refreshes after a reload and would write
-                    // back what was just read.
-                    onToggled: root.toggle(modelData.key, checked)
-                }
-
                 Label {
                     Layout.fillWidth: true
                     font.pixelSize: 10
                     elide: Text.ElideRight
                     text: {
+                        if (root.busy[modelData.key] === true)
+                            return "saving…"
                         var s = root.stageOf(modelData)
                         if (s === "live")      return "✓ in effect"
                         if (s === "installed") return "installed — rebuild to apply"

@@ -230,14 +230,9 @@ than leaving the working one running." }
                     Layout.preferredWidth: 190
                 }
 
-                InfoButton {
-                    Layout.alignment: Qt.AlignVCenter
-                    title: modelData.label
-                    what: modelData.what
-                    why: modelData.why
-                    ifWrong: modelData.if_wrong
-                }
-
+                // [label] [control] [info] - the control beside its label,
+                // the info button trailing the thing it explains.
+                //
                 // One control per kind. SpinBox rather than a free text field
                 // so an out-of-range port is awkward to even express - the
                 // engine still validates, but the UI should not invite a
@@ -250,9 +245,24 @@ than leaving the working one running." }
                     property var setting: modelData
                 }
 
+                InfoButton {
+                    Layout.alignment: Qt.AlignVCenter
+                    title: modelData.label
+                    what: modelData.what
+                    why: modelData.why
+                    ifWrong: modelData.if_wrong
+                }
+
+                // Says "saving" in words. Controls are never greyed out to
+                // mean busy: a disabled control reads as broken, and there is
+                // nothing to guard - each write sends an explicit value, so a
+                // second one simply lands on whatever you chose last.
                 Label {
-                    visible: root.pending(modelData)
+                    visible: root.busy[modelData.key] === true
+                             || root.pending(modelData)
                     text: {
+                        if (root.busy[modelData.key] === true)
+                            return "saving…"
                         if (modelData.key === "port")
                             return "running: " + root.effective.port
                         return "running: " + String(root.effective.logLevel || "")
@@ -262,7 +272,10 @@ than leaving the working one running." }
                     elide: Text.ElideRight
                     Layout.fillWidth: true
                 }
-                Item { Layout.fillWidth: !root.pending(modelData) }
+                Item {
+                    Layout.fillWidth: !(root.busy[modelData.key] === true
+                                        || root.pending(modelData))
+                }
             }
         }
     }
@@ -271,7 +284,6 @@ than leaving the working one running." }
         id: boolControl
         Switch {
             checked: setting.declared === true
-            enabled: !(root.busy[setting.key] === true)
             // onToggled, not onCheckedChanged: the latter also fires when the
             // binding updates after a reload, which would write back the
             // value we just read and loop.
@@ -286,7 +298,6 @@ than leaving the working one running." }
             to: setting.max !== undefined ? setting.max : 65535
             value: setting.declared !== null ? setting.declared : 3100
             editable: true
-            enabled: !(root.busy[setting.key] === true)
             // SpinBox groups digits by locale, which renders port 3100 as
             // "3,100". A port is an identifier, not a quantity - no separator
             // belongs in it, and one invites typing it back in with a comma.
@@ -305,7 +316,6 @@ than leaving the working one running." }
         ComboBox {
             model: setting.options
             currentIndex: Math.max(0, setting.options.indexOf(setting.declared))
-            enabled: !(root.busy[setting.key] === true)
             onActivated: root.write(setting.key, setting.options[currentIndex])
         }
     }

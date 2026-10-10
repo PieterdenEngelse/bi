@@ -209,6 +209,21 @@ Suggested actions instead." }
                     Layout.preferredWidth: 250
                 }
 
+                // [label] [control] [info] - the control sits next to its
+                // label, and the info button trails the thing it explains.
+                Switch {
+                    checked: modelData.enabled === true
+                    // Never disabled while saving. A disabled control renders
+                    // greyed and reads as *broken* rather than *busy*, and
+                    // there is nothing to protect against anyway: the write
+                    // sends an explicit desired state, so toggling twice in a
+                    // row just writes twice and lands on what you chose.
+                    // onToggled, not onCheckedChanged: the latter also fires
+                    // when the binding updates after a reload, writing back
+                    // what was just read, forever.
+                    onToggled: root.toggle(modelData.key, checked)
+                }
+
                 InfoButton {
                     Layout.alignment: Qt.AlignVCenter
                     title: modelData.label
@@ -217,21 +232,15 @@ Suggested actions instead." }
                     ifWrong: modelData.if_wrong
                 }
 
-                Switch {
-                    checked: modelData.enabled === true
-                    enabled: !(root.busy[modelData.key] === true)
-                    // onToggled, not onCheckedChanged: the latter also fires
-                    // when the binding updates after a reload, writing back
-                    // what was just read, forever.
-                    onToggled: root.toggle(modelData.key, checked)
-                }
-
                 // The honest part: what the switch says, versus what is
-                // actually in the shell.
+                // actually in the shell. Also where "saving" is said, in
+                // words, rather than by grey-ing the control out.
                 Label {
                     Layout.fillWidth: true
                     font.pixelSize: 10
                     text: {
+                        if (root.busy[modelData.key] === true)
+                            return "saving…"
                         if (modelData.live === true)
                             return "✓ present in the shell"
                         if (modelData.enabled === true)
