@@ -10,6 +10,8 @@ import QtQuick.Controls
 Panel {
     id: root
 
+    Style { id: style }
+
     // Header + verdict + 2 rows + gap + 3 target rows + the hint line.
     implicitHeight: 225
 
@@ -39,7 +41,7 @@ Panel {
                 : "Cannot build Qt for WebAssembly"
             font.pixelSize: 13
             font.bold: true
-            color: !root.present ? palette.text : root.hasEm ? "#2e7d32" : "#ef6c00"
+            color: !root.present ? palette.text : root.hasEm ? style.okText : style.warnText
             opacity: root.present ? 1.0 : 0.55
             wrapMode: Text.WordWrap
         }
@@ -64,7 +66,7 @@ Panel {
             label: "wasm32-unknown"
             value: !root.present ? "—" : root.hasWasm ? "✓ installed" : "✗ absent"
             valueColor: !root.present ? palette.text
-                      : root.hasWasm ? "#2e7d32" : "#ef6c00"
+                      : root.hasWasm ? style.okText : style.warnText
             panel: root
             statKey: "has_wasm32_unknown"
         }
@@ -72,7 +74,7 @@ Panel {
             label: "wasm32-emscripten"
             value: !root.present ? "—" : root.hasEm ? "✓ installed" : "✗ absent"
             valueColor: !root.present ? palette.text
-                      : root.hasEm ? "#2e7d32" : "#ef6c00"
+                      : root.hasEm ? style.okText : style.warnText
             panel: root
             statKey: "has_wasm32_emscripten"
         }
@@ -82,8 +84,8 @@ Panel {
             // Only actually a problem alongside wasm32-unknown-unknown, which
             // is the target that links with it.
             valueColor: !root.present ? palette.text
-                      : root.hasLld ? "#2e7d32"
-                      : root.hasWasm ? "#c62828" : palette.text
+                      : root.hasLld ? style.okText
+                      : root.hasWasm ? style.badText : palette.text
             panel: root
             statKey: "lld_available"
         }

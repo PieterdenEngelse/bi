@@ -15,6 +15,8 @@ import QtQuick.Layouts
 Rectangle {
     id: root
 
+    Style { id: style }
+
     property string apiBase: ""
     signal changed()
 
@@ -191,9 +193,9 @@ project, and the system one covers everywhere else." }
                 visible: root.anyPrepared
                 text: "prepared — not installed"
                 font.pixelSize: 10
-                color: "#8a6d3b"
+                color: style.pendingText
                 padding: 3
-                background: Rectangle { color: "#fcf8e3"; radius: 3 }
+                background: Rectangle { color: style.pendingTint; radius: 3 }
             }
         }
 
@@ -205,15 +207,15 @@ project, and the system one covers everywhere else." }
             visible: !root.imported
             implicitHeight: notImported.implicitHeight + 12
             radius: 4
-            color: "#fdecea"
-            border.color: "#f44336"
+            color: style.badTint
+            border.color: style.badDot
             Label {
                 id: notImported
                 x: 8; y: 6
                 width: parent.width - 16
                 wrapMode: Text.WordWrap
                 font.pixelSize: 11
-                color: "#5f2120"
+                color: style.badText
                 text: "The system configuration does not import "
                       + root.installedPath + " yet, so anything prepared here "
                       + "will have no effect. Add it to the imports list "
@@ -234,7 +236,7 @@ project, and the system one covers everywhere else." }
             Layout.fillWidth: true
             visible: root.lastError !== ""
             text: "✗ " + root.lastError
-            color: "#b71c1c"
+            color: style.badText
             font.pixelSize: 11
             wrapMode: Text.WordWrap
         }
@@ -280,7 +282,7 @@ project, and the system one covers everywhere else." }
                         if (s === "prepared")  return "prepared — needs installing"
                         return ""
                     }
-                    color: root.stageOf(modelData) === "live" ? "#1b5e20" : "#8a6d3b"
+                    color: root.stageOf(modelData) === "live" ? style.okText : style.pendingText
                 }
             }
         }

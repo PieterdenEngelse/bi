@@ -4,6 +4,8 @@ import QtQuick.Controls
 Panel {
     id: root
 
+    Style { id: style }
+
     /// [{at, value}] oldest first, for the sparkline.
     property var history: []
 
@@ -51,7 +53,7 @@ Panel {
                     var p = xy(i)
                     ctx.lineTo(p[0], p[1])
                 }
-                ctx.strokeStyle = root.stateColors[root.state_] || "#9e9e9e"
+                ctx.strokeStyle = root.stateColors[root.state_] || style.unknownDot
                 ctx.lineWidth = 2
                 ctx.stroke()
 

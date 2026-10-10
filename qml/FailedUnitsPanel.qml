@@ -4,6 +4,8 @@ import QtQuick.Controls
 Panel {
     id: root
 
+    Style { id: style }
+
     readonly property int count: value ? value.count : 0
     readonly property var unavailable: value && value.unavailable_scopes
                                        ? value.unavailable_scopes : []
@@ -41,7 +43,7 @@ Panel {
                 Label {
                     text: modelData.unit + "  (" + modelData.scope + ")"
                     font.pixelSize: 12
-                    color: "#f44336"
+                    color: style.badDot
                     elide: Text.ElideRight
                     width: parent.width
                 }

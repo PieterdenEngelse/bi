@@ -22,6 +22,7 @@ fn main() {
             "qml/SettingsSection.qml",
             "qml/DevShellSection.qml",
             "qml/SystemSection.qml",
+            "qml/Style.qml",
             "qml/GenericPanel.qml",
             "qml/InfoButton.qml",
             "qml/StatRow.qml",

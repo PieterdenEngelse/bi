@@ -15,6 +15,41 @@ ApplicationWindow {
     visible: true
     title: "nixdash"
 
+    // Every colour in the app comes from here. Not a singleton: cxx-qt 0.10
+    // cannot register one, so each component instantiates its own - see
+    // Style.qml.
+    Style { id: style }
+
+    // A dark scheme chosen outright, rather than inherited from the desktop.
+    //
+    // It used to read the system palette and then paint tiles with
+    // light-assuming literals (#fcf8e3, #fdecea), which looked fine only
+    // because the session theme happened to be light - under a dark one the
+    // app became dark chrome with pale islands in it.
+    //
+    // Fusion is set in main.rs before the engine starts. It is the built-in
+    // style that takes its colours from the palette, so setting it here
+    // reaches every button, switch, tab and combo box without styling them
+    // one at a time.
+    palette.window: style.window
+    palette.base: style.surface
+    palette.alternateBase: style.surfaceAlt
+    palette.text: style.text
+    palette.windowText: style.text
+    palette.buttonText: style.text
+    palette.button: style.surfaceAlt
+    palette.mid: style.border
+    palette.midlight: style.borderSoft
+    palette.dark: style.window
+    palette.light: style.surfaceAlt
+    palette.highlight: style.link
+    palette.highlightedText: style.window
+    palette.link: style.link
+    palette.linkVisited: style.linkHover
+    palette.placeholderText: style.textMuted
+    palette.toolTipBase: style.surfaceAlt
+    palette.toolTipText: style.text
+
     // Opens filling the screen.
     //
     // Maximized, NOT FullScreen. True fullscreen drops the title bar and
@@ -242,7 +277,7 @@ platform support</a>" }
 
             Label {
                 text: root.engineUp ? dash.apiBase : root.lastError
-                color: root.engineUp ? palette.text : "#f44336"
+                color: root.engineUp ? palette.text : style.badDot
                 font.pixelSize: 11
                 opacity: root.engineUp ? 0.55 : 1.0
                 elide: Text.ElideLeft

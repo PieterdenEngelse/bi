@@ -4,6 +4,8 @@ import QtQuick.Controls
 Panel {
     id: root
 
+    Style { id: style }
+
     readonly property real usedPct: value ? value.used_fraction * 100 : 0
     readonly property real availGb: value ? value.avail_bytes / 1073741824 : 0
     readonly property real totalGb: value ? value.total_bytes / 1073741824 : 0
@@ -26,7 +28,7 @@ Panel {
                 height: parent.height - 2
                 width: Math.max(0, Math.min(1, root.usedPct / 100)) * (parent.width - 2)
                 radius: 3
-                color: root.stateColors[root.state_] || "#9e9e9e"
+                color: root.stateColors[root.state_] || style.unknownDot
                 opacity: 0.55
                 Behavior on width { NumberAnimation { duration: 300 } }
             }

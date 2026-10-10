@@ -12,6 +12,8 @@ import QtQuick.Controls
 Rectangle {
     id: root
 
+    Style { id: style }
+
     /// A PanelSummary from the engine. Optional: a panel can still be driven
     /// by explicit title/subtitle/state_ if it has no summary.
     property var summary: null
@@ -41,10 +43,10 @@ Rectangle {
     border.color: palette.mid
 
     readonly property var stateColors: ({
-        "ok":    "#4caf50",
-        "warn":  "#ff9800",
-        "bad":   "#f44336",
-        "stale": "#9e9e9e"
+        "ok":    style.okDot,
+        "warn":  style.warnDot,
+        "bad":   style.badDot,
+        "stale": style.unknownDot
     })
 
     Column {
@@ -59,7 +61,7 @@ Rectangle {
             Rectangle {
                 width: 10; height: 10; radius: 5
                 anchors.verticalCenter: parent.verticalCenter
-                color: root.stateColors[root.state_] || "#9e9e9e"
+                color: root.stateColors[root.state_] || style.unknownDot
             }
 
             Label {

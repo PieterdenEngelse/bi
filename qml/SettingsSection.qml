@@ -17,6 +17,8 @@ import QtQuick.Layouts
 Rectangle {
     id: root
 
+    Style { id: style }
+
     property string apiBase: ""
     /// Emitted after a successful write, so the shell can re-poll actions -
     /// an unapplied change becomes an offered action.
@@ -192,9 +194,9 @@ than leaving the working one running." }
                 visible: root.anyPending
                 text: "changes not applied"
                 font.pixelSize: 10
-                color: "#8a6d3b"
+                color: style.pendingText
                 padding: 3
-                background: Rectangle { color: "#fcf8e3"; radius: 3 }
+                background: Rectangle { color: style.pendingTint; radius: 3 }
             }
         }
 
@@ -210,7 +212,7 @@ than leaving the working one running." }
             Layout.fillWidth: true
             visible: root.lastError !== ""
             text: "✗ " + root.lastError
-            color: "#b71c1c"
+            color: style.badText
             font.pixelSize: 11
             wrapMode: Text.WordWrap
         }
@@ -256,7 +258,7 @@ than leaving the working one running." }
                         return "running: " + String(root.effective.logLevel || "")
                     }
                     font.pixelSize: 10
-                    color: "#8a6d3b"
+                    color: style.pendingText
                     elide: Text.ElideRight
                     Layout.fillWidth: true
                 }

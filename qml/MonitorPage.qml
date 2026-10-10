@@ -10,6 +10,8 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    Style { id: style }
+
     property var panels: []
     property var actions: []
 
@@ -22,10 +24,10 @@ Item {
     ]
 
     readonly property var statusColors: ({
-        "ok":      "#4caf50",
-        "warn":    "#ff9800",
-        "bad":     "#f44336",
-        "unknown": "#9e9e9e"
+        "ok":      style.okDot,
+        "warn":    style.warnDot,
+        "bad":     style.badDot,
+        "unknown": style.unknownDot
     })
     // Worst-first, so a subject's dot reflects its unhappiest panel rather
     // than an average that hides it.
@@ -99,8 +101,8 @@ Item {
                     width: parent.width
                     height: 44
                     radius: 6
-                    color: "#fdecea"
-                    border.color: "#f44336"
+                    color: style.badTint
+                    border.color: style.badDot
 
                     RowLayout {
                         anchors.fill: parent
@@ -108,18 +110,18 @@ Item {
                         anchors.rightMargin: 12
                         spacing: 8
 
-                        Rectangle { width: 8; height: 8; radius: 4; color: "#f44336" }
+                        Rectangle { width: 8; height: 8; radius: 4; color: style.badDot }
                         Label {
                             text: modelData.title
                             font.bold: true
                             font.pixelSize: 13
-                            color: "#5f2120"
+                            color: style.badText
                         }
                         Label {
                             Layout.fillWidth: true
                             text: modelData.why
                             font.pixelSize: 11
-                            color: "#5f2120"
+                            color: style.badText
                             opacity: 0.8
                             elide: Text.ElideRight
                         }
@@ -154,7 +156,7 @@ Item {
                         Rectangle {
                             width: 12; height: 12; radius: 6
                             Layout.alignment: Qt.AlignVCenter
-                            color: root.statusColors[root.worstOf(modelData.key)] || "#9e9e9e"
+                            color: root.statusColors[root.worstOf(modelData.key)] || style.unknownDot
                         }
 
                         ColumnLayout {

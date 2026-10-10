@@ -16,6 +16,8 @@ import QtQuick.Layouts
 Panel {
     id: root
 
+    Style { id: style }
+
     property var actions: []
     property var errors: []
     // This panel posts directly rather than routing through Main's getJson.
@@ -178,9 +180,9 @@ nixdash has no privilege of its own, so that prompt is what permits it."
     readonly property int needed: actions.filter(function(a) { return a.urgency === "needed" }).length
 
     readonly property var urgencyColors: ({
-        "needed":  "#f44336",
-        "advised": "#ff9800",
-        "routine": "#9e9e9e"
+        "needed":  style.badDot,
+        "advised": style.warnDot,
+        "routine": style.unknownDot
     })
 
     title: "Suggested actions"
@@ -241,7 +243,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                             Rectangle {
                                 width: 8; height: 8; radius: 4
                                 anchors.verticalCenter: parent.verticalCenter
-                                color: root.urgencyColors[modelData.urgency] || "#9e9e9e"
+                                color: root.urgencyColors[modelData.urgency] || style.unknownDot
                             }
                             Label {
                                 text: modelData.title
@@ -266,7 +268,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                 width: kindLbl.implicitWidth + 10
                                 height: kindLbl.implicitHeight + 3
                                 radius: 3
-                                color: modelData.kind === "nix" ? "#e3f2fd" : "#eceff1"
+                                color: modelData.kind === "nix" ? style.nixBadgeTint : style.shellBadgeTint
                                 anchors.verticalCenter: parent.verticalCenter
                                 Label {
                                     id: kindLbl
@@ -275,7 +277,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                           ? "paste into your Nix config"
                                           : "run in a terminal"
                                     font.pixelSize: 10
-                                    color: modelData.kind === "nix" ? "#0d47a1" : "#37474f"
+                                    color: modelData.kind === "nix" ? style.nixBadgeText : style.shellBadgeText
                                 }
                             }
                             Rectangle {
@@ -283,14 +285,14 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                 width: rootLbl.implicitWidth + 10
                                 height: rootLbl.implicitHeight + 3
                                 radius: 3
-                                color: "#ffecb3"
+                                color: style.rootBadgeTint
                                 anchors.verticalCenter: parent.verticalCenter
                                 Label {
                                     id: rootLbl
                                     anchors.centerIn: parent
                                     text: "needs root"
                                     font.pixelSize: 10
-                                    color: "#5d4037"
+                                    color: style.rootBadgeText
                                 }
                             }
                             // The badge makes a claim - "this needs root" -
@@ -659,8 +661,8 @@ generations that would be your rollback targets." }
                             width: parent.width
                             height: resLbl.implicitHeight + 12
                             radius: 4
-                            color: res && res.ok ? "#e8f5e9" : "#fdecea"
-                            border.color: res && res.ok ? "#4caf50" : "#f44336"
+                            color: res && res.ok ? style.okTint : style.badTint
+                            border.color: res && res.ok ? style.okDot : style.badDot
 
                             Label {
                                 id: resLbl
@@ -669,7 +671,7 @@ generations that would be your rollback targets." }
                                 text: parent.res
                                       ? (parent.res.ok ? "✓ " : "✗ ") + parent.res.text
                                       : ""
-                                color: parent.res && parent.res.ok ? "#1b5e20" : "#5f2120"
+                                color: parent.res && parent.res.ok ? style.okText : style.badText
                                 font.family: "monospace"
                                 font.pixelSize: 10
                                 wrapMode: Text.Wrap
@@ -693,7 +695,7 @@ generations that would be your rollback targets." }
                 Label {
                     width: parent.width
                     text: "probe " + modelData.provider + " failed: " + modelData.error
-                    color: "#ff9800"
+                    color: style.warnDot
                     font.pixelSize: 11
                     wrapMode: Text.WordWrap
                 }

@@ -16,6 +16,8 @@ import QtQuick.Layouts
 Rectangle {
     id: root
 
+    Style { id: style }
+
     property string apiBase: ""
     signal changed()
 
@@ -171,9 +173,9 @@ Suggested actions instead." }
                 visible: root.anyWaiting
                 text: "re-enter the shell"
                 font.pixelSize: 10
-                color: "#8a6d3b"
+                color: style.pendingText
                 padding: 3
-                background: Rectangle { color: "#fcf8e3"; radius: 3 }
+                background: Rectangle { color: style.pendingTint; radius: 3 }
             }
         }
 
@@ -189,7 +191,7 @@ Suggested actions instead." }
             Layout.fillWidth: true
             visible: root.lastError !== ""
             text: "✗ " + root.lastError
-            color: "#b71c1c"
+            color: style.badText
             font.pixelSize: 11
             wrapMode: Text.WordWrap
         }
@@ -236,7 +238,7 @@ Suggested actions instead." }
                             return "written — not in this shell yet"
                         return ""
                     }
-                    color: modelData.live === true ? "#1b5e20" : "#8a6d3b"
+                    color: modelData.live === true ? style.okText : style.pendingText
                     elide: Text.ElideRight
                 }
             }

@@ -10,6 +10,8 @@ import QtQuick.Controls
 Panel {
     id: root
 
+    Style { id: style }
+
     // Size to the stat count rather than the Panel default, so a long list is
     // not silently clipped at the bottom of the card.
     implicitHeight: 62 + (summary && summary.stats ? summary.stats.length : 0) * 21
@@ -56,7 +58,7 @@ Panel {
             visible: root.summary && root.summary.error
             width: parent.width
             text: root.summary ? "error: " + root.summary.error : ""
-            color: "#ff9800"
+            color: style.warnDot
             font.pixelSize: 11
             wrapMode: Text.WordWrap
         }

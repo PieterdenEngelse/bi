@@ -12,6 +12,8 @@ import QtQuick.Controls
 Panel {
     id: root
 
+    Style { id: style }
+
     // Header + verdict + 3 rows + gap + 4 tool rows. Panel's 190 default
     // clipped the last two tools, which are the two that matter most.
     implicitHeight: 235
@@ -47,8 +49,8 @@ Panel {
             font.pixelSize: 13
             font.bold: true
             color: !root.present ? palette.text
-                 : root.complete ? "#2e7d32"
-                 : "#c62828"
+                 : root.complete ? style.okText
+                 : style.badText
             opacity: root.present ? 1.0 : 0.55
             wrapMode: Text.WordWrap
         }
@@ -84,7 +86,7 @@ Panel {
                 value: root.present ? (root.has(modelData) ? "✓ present" : "✗ missing")
                                     : "—"
                 valueColor: !root.present ? palette.text
-                          : root.has(modelData) ? "#2e7d32" : "#c62828"
+                          : root.has(modelData) ? style.okText : style.badText
                 panel: root
                 statKey: root.has(modelData) ? "tools_found" : "tools_missing"
             }

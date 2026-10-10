@@ -24,6 +24,7 @@ fn main() {
             "qml/SettingsSection.qml",
             "qml/DevShellSection.qml",
             "qml/SystemSection.qml",
+            "qml/Style.qml",
             "qml/GenericPanel.qml",
             "qml/InfoButton.qml",
             "qml/StatRow.qml",
@@ -34,6 +35,8 @@ fn main() {
     )
     .qt_module("Qml")
     .qt_module("Quick")
+    // QQuickStyle lives here; main.rs sets Fusion before the engine starts.
+    .qt_module("QuickControls2")
     .files(["src/cxxqt_object.rs"])
     .build();
 }

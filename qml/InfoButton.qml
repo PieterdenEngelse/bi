@@ -53,26 +53,54 @@ Item {
     readonly property bool hasContent:
         what !== "" || why !== "" || ifWrong !== "" || sections.length > 0
 
-    implicitWidth: 16
-    implicitHeight: 16
+    Style { id: style }
+
+    implicitWidth: style.infoSize
+    implicitHeight: style.infoSize
     visible: hasContent
 
+    // The canonical spec, kept identical to the RERAG repo's so the two
+    // dashboards read as the same family: a rounded square in the Rust brand
+    // colour with a white glyph. It used to be a faint bordered circle that
+    // took its colour from the palette, which made the single most important
+    // affordance in the app the least visible thing on the row.
     Rectangle {
         id: dot
         anchors.fill: parent
-        radius: width / 2
-        color: hover.hovered ? palette.highlight : "transparent"
-        border.color: hover.hovered ? palette.highlight : palette.mid
+        radius: 4
+        color: style.infoBg
+        border.color: style.infoBorder
         border.width: 1
+        opacity: hover.hovered ? 0.8 : 1.0
 
-        Label {
-            anchors.centerIn: parent
-            text: "i"
-            font.pixelSize: 10
-            font.bold: true
-            font.family: "serif"
-            color: hover.hovered ? palette.highlightedText : palette.text
-            opacity: hover.hovered ? 1.0 : 0.55
+        // Drawn rather than loaded: an SVG asset would be a second file to
+        // keep in sync across two build systems for twelve lines of geometry.
+        // Proportions follow the spec - circle r=9, stem from y=8 to y=14,
+        // dot at cy=6.3 r=1, on a 24-unit grid.
+        Canvas {
+            anchors.fill: parent
+            onPaint: {
+                var ctx = getContext("2d")
+                var s = width / 24
+                ctx.reset()
+                ctx.strokeStyle = style.infoGlyph
+                ctx.fillStyle = style.infoGlyph
+                ctx.lineWidth = 1.5 * s
+                ctx.lineCap = "round"
+
+                ctx.beginPath()
+                ctx.arc(12 * s, 12 * s, 9 * s, 0, 2 * Math.PI)
+                ctx.stroke()
+
+                ctx.beginPath()
+                ctx.moveTo(12 * s, 10 * s)
+                ctx.lineTo(12 * s, 16.5 * s)
+                ctx.stroke()
+
+                ctx.beginPath()
+                ctx.arc(12 * s, 7.8 * s, 1.1 * s, 0, 2 * Math.PI)
+                ctx.fill()
+            }
         }
 
         // MouseArea, not TapHandler + HoverHandler: TapHandler ignores
