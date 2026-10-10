@@ -33,6 +33,12 @@
         QT_PLUGIN_PATH = "${qtEnv}/${pkgs.qt6.qtbase.qtPluginPrefix}";
         QML2_IMPORT_PATH = "${qtEnv}/${pkgs.qt6.qtbase.qtQmlPrefix}";
       };
+
+      # Optional dev shell additions, toggled from nixdash's Config page.
+      # That file is GENERATED - nixdash rewrites it whole. This flake is
+      # hand-written and the app never touches it, which is what keeps the
+      # comments above intact.
+      devshellExtras = import ./nix/devshell-extras.nix { inherit pkgs; };
     in
     {
       packages.${system} = rec {
@@ -88,8 +94,12 @@
             '';
           };
 
+        # Optional additions nixdash can toggle from its Config page. The
+        # file is generated and rewritten whole by the app; this flake is
+        # hand-written and the app never edits it, which is the only way its
+        # comments survive. Re-enter the shell for a change to take effect.
         default = pkgs.mkShell ({
-        packages = with pkgs; [
+        packages = (with pkgs; [
           rustc
           cargo
           rustfmt
@@ -99,7 +109,7 @@
           pkg-config
           curl
           jq
-        ];
+        ]) ++ devshellExtras.packages;
 
         # Qt6Gui/Qt6OpenGL .prl files reference -lGLX and -lOpenGL, which live
         # in libglvnd. buildInputs (not packages) so the cc wrapper picks up
@@ -113,7 +123,10 @@
         # produces a running process, no window, and ZERO output. That has
         # cost hours. Make failures visible by default in the dev shell.
         QT_FORCE_STDERR_LOGGING = "1";
-        } // qtRuntime);
+        # Extras last, so a generated RUST_SRC_PATH lands - but this flake
+        # sets nothing it would override, and `//` is Nix's update operator
+        # here, not a comment.
+        } // qtRuntime // devshellExtras.env);
       };
 
       # Importable from a channel-based Home Manager by path, so no flake

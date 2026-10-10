@@ -349,7 +349,7 @@ pub fn plan(current_text: &str, path: &str, key: &str, value: &SettingValue) -> 
 }
 
 /// Lines that differ, marked. Enough to see a one-value change clearly.
-fn line_diff(before: &str, after: &str) -> Vec<String> {
+pub(crate) fn line_diff(before: &str, after: &str) -> Vec<String> {
     let old: Vec<&str> = before.lines().collect();
     let new: Vec<&str> = after.lines().collect();
     let mut out = Vec::new();

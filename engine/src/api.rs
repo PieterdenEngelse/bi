@@ -86,6 +86,7 @@ pub fn router_with(state: AppState) -> Router {
         .route("/api/actions/{id}/run", post(run_action))
         .route("/api/settings", get(list_settings).post(write_setting))
         .route("/api/settings/preview", post(preview_setting))
+        .route("/api/devshell", get(list_devshell).post(toggle_devshell))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state)
@@ -266,6 +267,104 @@ async fn write_setting(
         "applied": false,
         "next_step": "Run `home-manager switch`, then restart the engine. \
                       Nothing has changed yet - this only edited Nix source.",
+    })))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DevshellToggle {
+    key: String,
+    enabled: bool,
+}
+
+fn devshell_file() -> Result<(std::path::PathBuf, String), ApiError> {
+    let path = crate::devshell::extras_path()
+        .ok_or_else(|| ApiError::NotFound("no project directory - nothing to configure".into()))?;
+    let text = std::fs::read_to_string(&path).unwrap_or_default();
+    Ok((path, text))
+}
+
+/// Dev shell additions the app can toggle, and whether each is live yet.
+///
+/// `verified_by` names the panel stat that confirms it, so "enabled" and
+/// "actually there" stay separate facts - the same distinction the settings
+/// page makes between declared and in effect.
+async fn list_devshell(State(state): State<AppState>) -> Result<Json<serde_json::Value>, ApiError> {
+    let (path, text) = devshell_file()?;
+    let enabled = crate::devshell::read_enabled(&text);
+
+    // Look the confirming stat up in the panel that owns it, rather than
+    // re-measuring here - one source for the fact.
+    let panels = state.registry.summaries();
+    let live = |reference: &str| -> Value {
+        let Some((panel_id, stat)) = reference.split_once('.') else {
+            return Value::Null;
+        };
+        panels
+            .iter()
+            .find(|p| p.meta.id == panel_id)
+            .and_then(|p| p.latest.as_ref())
+            .map(|s| s.value[stat].clone())
+            .unwrap_or(Value::Null)
+    };
+
+    let extras: Vec<Value> = crate::devshell::known()
+        .into_iter()
+        .map(|e| {
+            let mut obj = serde_json::to_value(&e).unwrap_or_else(|_| json!({}));
+            if let Some(map) = obj.as_object_mut() {
+                map.insert(
+                    "enabled".into(),
+                    Value::Bool(enabled.iter().any(|k| k == e.key)),
+                );
+                map.insert("live".into(), live(e.verified_by));
+            }
+            obj
+        })
+        .collect();
+
+    Ok(Json(json!({
+        "path": path.display().to_string(),
+        "exists": path.exists(),
+        "extras": extras,
+    })))
+}
+
+/// Turn one addition on or off.
+///
+/// Writes the generated file and nothing else. Taking effect needs a new
+/// shell - `nix develop` - which the response says rather than leaving you to
+/// wonder why the panel has not moved.
+async fn toggle_devshell(
+    Json(toggle): Json<DevshellToggle>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let (path, text) = devshell_file()?;
+    let plan = crate::devshell::plan(
+        &text,
+        &path.display().to_string(),
+        &toggle.key,
+        toggle.enabled,
+    )
+    .map_err(|e| ApiError::NotRunnable(e.to_string()))?;
+
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)
+            .map_err(|e| ApiError::Internal(format!("creating {}: {e}", dir.display())))?;
+    }
+    std::fs::write(&path, &plan.rendered)
+        .map_err(|e| ApiError::Internal(format!("writing {}: {e}", path.display())))?;
+
+    tracing::info!(key = %plan.key, enabled = plan.enabled, "toggled dev shell extra");
+
+    Ok(Json(json!({
+        "written": true,
+        "path": plan.path,
+        "key": plan.key,
+        "enabled": plan.enabled,
+        "diff": plan.diff,
+        "live": false,
+        "next_step": "Re-enter the development shell with `nix develop` for \
+                      this to take effect. Nothing has changed in the shell \
+                      you already have open.",
     })))
 }
 

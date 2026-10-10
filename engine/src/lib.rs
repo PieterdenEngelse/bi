@@ -2,6 +2,7 @@ pub mod actions;
 pub mod api;
 pub mod collector;
 pub mod collectors;
+pub mod devshell;
 pub mod registry;
 pub mod settings;
 
