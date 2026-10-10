@@ -88,18 +88,28 @@ impl Collector for QtCollector {
             subject: Subject::Qt,
             info: Info {
                 what: "The qmake a build would use, and whether the prefix it \
-                       reports contains every host tool cxx-qt needs.",
+                       reports contains every host tool cxx-qt needs. This is \
+                       about BUILDING Qt software - it says nothing about \
+                       whether Qt is installed or running.",
                 why: "cxx-qt interrogates ONE qmake for headers, libraries and \
                       host tools. nixpkgs splits those across store paths - \
                       qmltyperegistrar and qmlcachegen ship in qtdeclarative, \
                       not qtbase - so a qtbase-only prefix looks fine and then \
                       fails.",
-                if_wrong: "An incomplete prefix fails late, during code \
-                           generation, with an error naming the missing tool \
-                           rather than the real cause. Use pkgs.qt6.env to \
-                           build a merged prefix; a plain symlinkJoin does not \
-                           work, because nixpkgs' qmake has its prefix baked \
-                           in.",
+                if_wrong: "'No qmake on PATH' does NOT mean Qt is absent. \
+                           nixdash itself is a Qt program and is drawing this \
+                           text with libQt6Qml right now: runtime libraries \
+                           come from the binary's own Nix closure, found by \
+                           RPATH, never from PATH. qmake is a development \
+                           tool, which on NixOS normally exists only inside a \
+                           devShell - so this panel reads 'unknown' on a \
+                           perfectly healthy machine, and that is correct. \
+                           An incomplete prefix, by contrast, fails late \
+                           during code generation with an error naming the \
+                           missing tool rather than the real cause: use \
+                           pkgs.qt6.env for a merged prefix, since a plain \
+                           symlinkJoin is ignored - nixpkgs' qmake has its \
+                           prefix baked in.",
             },
             stats: vec![
                 StatInfo {
@@ -111,8 +121,12 @@ impl Collector for QtCollector {
                               uses. Reporting on a different qmake than the \
                               build uses would be worse than reporting \
                               nothing.",
-                        if_wrong: "\"not found\" means no Qt build will work \
-                                   in this environment at all.",
+                        if_wrong: "\"not found\" means no Qt build could run \
+                                   here - it does not mean Qt is absent. \
+                                   Installed Qt programs keep working, \
+                                   including this one: they load their \
+                                   libraries by RPATH from their own closure, \
+                                   not from PATH.",
                     },
                 },
                 StatInfo {
@@ -232,7 +246,11 @@ impl Collector for QtCollector {
                 .iter()
                 .map(|t| (t.to_string(), Path::new(dir).join(t).exists()))
                 .fold((vec![], vec![]), |(mut f, mut m), (t, exists)| {
-                    if exists { f.push(t) } else { m.push(t) }
+                    if exists {
+                        f.push(t)
+                    } else {
+                        m.push(t)
+                    }
                     (f, m)
                 }),
             None => (
@@ -258,17 +276,32 @@ impl Collector for QtCollector {
         let complete = v["prefix_complete"].as_bool().unwrap_or(false);
         let version = v["version"].as_str();
 
-        // "No Qt here" is not a fault - most shells have none, and flagging it
-        // red would make the panel cry wolf everywhere except a Qt dev shell.
-        // It is only Bad when a qmake exists but its prefix cannot satisfy a
-        // build, because that is the case that fails late and confusingly.
+        // No qmake here is not a fault - most shells have none, and flagging
+        // it red would make the panel cry wolf everywhere except a Qt dev
+        // shell. It is only Bad when a qmake exists but its prefix cannot
+        // satisfy a build, because that is the case that fails late and
+        // confusingly.
+        //
+        // The headline says *qmake*, deliberately, and not "no Qt". This
+        // panel is about whether you could BUILD Qt software here, and the
+        // only thing it looked for is the build tool. Qt's runtime libraries
+        // are a separate question it never asked - and the answer is plainly
+        // yes, since the app asking it is itself a Qt program. Saying "no Qt
+        // in this environment" while rendering through libQt6Qml was simply
+        // false, and the kind of false that teaches someone the wrong model.
         match (version, complete) {
             (Some(ver), true) => (Status::Ok, format!("{ver}, prefix complete")),
             (Some(ver), false) => {
                 let missing = v["tools_missing"].as_array().map_or(0, |a| a.len());
-                (Status::Bad, format!("{ver}, {missing} host tool(s) missing"))
+                (
+                    Status::Bad,
+                    format!("{ver}, {missing} host tool(s) missing"),
+                )
             }
-            (None, _) => (Status::Unknown, "no Qt in this environment".into()),
+            (None, _) => (
+                Status::Unknown,
+                "no qmake on PATH - cannot tell whether a Qt build would work".into(),
+            ),
         }
     }
 }

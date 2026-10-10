@@ -3,4 +3,7 @@ pub mod failed_units;
 pub mod generations;
 pub mod memory;
 pub mod qt;
+pub mod qt_runtime;
+pub mod qt_wasm;
 pub mod rust;
+pub mod rust_build;

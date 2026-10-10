@@ -69,84 +69,112 @@ impl Collector for MemoryCollector {
                            unrelated process with it.",
             },
             stats: vec![
-                StatInfo { key: "total_kb", info: Info {
-                    what: "MemTotal: physical RAM the kernel manages.",
-                    why: "The ceiling everything else is measured against.",
-                    if_wrong: "Only wrong if it changes, which would mean a \
+                StatInfo {
+                    key: "total_kb",
+                    info: Info {
+                        what: "MemTotal: physical RAM the kernel manages.",
+                        why: "The ceiling everything else is measured against.",
+                        if_wrong: "Only wrong if it changes, which would mean a \
                                hardware or VM reconfiguration.",
-                }},
-                StatInfo { key: "available_kb", info: Info {
-                    what: "MemAvailable: an estimate of what a new process \
+                    },
+                },
+                StatInfo {
+                    key: "available_kb",
+                    info: Info {
+                        what: "MemAvailable: an estimate of what a new process \
                            could get without swapping, counting reclaimable \
                            cache as available.",
-                    why: "This is the number that predicts whether the next \
+                        why: "This is the number that predicts whether the next \
                           allocation succeeds. free_kb does not.",
-                    if_wrong: "Below ~500 MB, expect the OOM killer during a \
+                        if_wrong: "Below ~500 MB, expect the OOM killer during a \
                                parallel build. Reduce job count before it \
                                picks a victim for you.",
-                }},
-                StatInfo { key: "free_kb", info: Info {
-                    what: "MemFree: pages holding nothing at all.",
-                    why: "Shown for completeness; it is routinely low on a \
+                    },
+                },
+                StatInfo {
+                    key: "free_kb",
+                    info: Info {
+                        what: "MemFree: pages holding nothing at all.",
+                        why: "Shown for completeness; it is routinely low on a \
                           healthy machine because the kernel uses spare RAM \
                           for cache rather than wasting it.",
-                    if_wrong: "A low value here alone is not a problem. Judge \
+                        if_wrong: "A low value here alone is not a problem. Judge \
                                by available_kb instead.",
-                }},
-                StatInfo { key: "swap_total_kb", info: Info {
-                    what: "Configured swap.",
-                    why: "Swap is the buffer between memory pressure and the \
+                    },
+                },
+                StatInfo {
+                    key: "swap_total_kb",
+                    info: Info {
+                        what: "Configured swap.",
+                        why: "Swap is the buffer between memory pressure and the \
                           OOM killer.",
-                    if_wrong: "Zero swap means pressure turns into kills with \
+                        if_wrong: "Zero swap means pressure turns into kills with \
                                no warning phase.",
-                }},
-                StatInfo { key: "swap_free_kb", info: Info {
-                    what: "Swap not currently in use.",
-                    why: "Falling swap while available_kb is also low means \
+                    },
+                },
+                StatInfo {
+                    key: "swap_free_kb",
+                    info: Info {
+                        what: "Swap not currently in use.",
+                        why: "Falling swap while available_kb is also low means \
                           the buffer is being spent.",
-                    if_wrong: "Near zero with low available memory is the \
+                        if_wrong: "Near zero with low available memory is the \
                                state immediately before an OOM kill.",
-                }},
-                StatInfo { key: "used_fraction", info: Info {
-                    what: "1 - available/total, as a fraction.",
-                    why: "A single number for the headroom trend, and what \
+                    },
+                },
+                StatInfo {
+                    key: "used_fraction",
+                    info: Info {
+                        what: "1 - available/total, as a fraction.",
+                        why: "A single number for the headroom trend, and what \
                           the sparkline plots.",
-                    if_wrong: "Above ~0.9 sustained during a build is the \
+                        if_wrong: "Above ~0.9 sustained during a build is the \
                                shape that precedes a kill.",
-                }},
-                StatInfo { key: "pressure_some_avg10", info: Info {
-                    what: "PSI: percentage of the last 10s in which at least \
+                    },
+                },
+                StatInfo {
+                    key: "pressure_some_avg10",
+                    info: Info {
+                        what: "PSI: percentage of the last 10s in which at least \
                            one task stalled waiting for memory.",
-                    why: "Distinguishes \"cache is full\" (harmless) from \
+                        why: "Distinguishes \"cache is full\" (harmless) from \
                           \"reclaim is costing time\" (not harmless).",
-                    if_wrong: "Anything sustained above ~10 means real time \
+                        if_wrong: "Anything sustained above ~10 means real time \
                                is being lost to reclaim right now.",
-                }},
-                StatInfo { key: "pressure_some_avg60", info: Info {
-                    what: "The same measure averaged over 60 seconds.",
-                    why: "Less twitchy than avg10; better for deciding \
+                    },
+                },
+                StatInfo {
+                    key: "pressure_some_avg60",
+                    info: Info {
+                        what: "The same measure averaged over 60 seconds.",
+                        why: "Less twitchy than avg10; better for deciding \
                           whether a trend is real.",
-                    if_wrong: "Above ~1 means the machine has been under \
+                        if_wrong: "Above ~1 means the machine has been under \
                                genuine memory pressure for a while.",
-                }},
-                StatInfo { key: "pressure_full_avg10", info: Info {
-                    what: "PSI full: percentage of the last 10s in which \
+                    },
+                },
+                StatInfo {
+                    key: "pressure_full_avg10",
+                    info: Info {
+                        what: "PSI full: percentage of the last 10s in which \
                            *every* runnable task was stalled on memory.",
-                    why: "Non-zero here means the machine was doing no useful \
+                        why: "Non-zero here means the machine was doing no useful \
                           work at all for that fraction of time.",
-                    if_wrong: "Any sustained non-zero value is severe; the \
+                        if_wrong: "Any sustained non-zero value is severe; the \
                                system is thrashing.",
-                }},
+                    },
+                },
             ],
         }
     }
 
     fn sample(&self) -> Result<Value> {
-        let meminfo = std::fs::read_to_string("/proc/meminfo")
-            .context("reading /proc/meminfo")?;
+        let meminfo = std::fs::read_to_string("/proc/meminfo").context("reading /proc/meminfo")?;
         let m = parse_meminfo(&meminfo);
         let get = |k: &str| -> Result<u64> {
-            m.get(k).copied().with_context(|| format!("{k} missing from /proc/meminfo"))
+            m.get(k)
+                .copied()
+                .with_context(|| format!("{k} missing from /proc/meminfo"))
         };
 
         let total_kb = get("MemTotal")?;
@@ -176,9 +204,15 @@ impl Collector for MemoryCollector {
             } else {
                 1.0 - (available_kb as f64 / total_kb as f64)
             },
-            pressure_some_avg10: some.as_deref().and_then(|l| parse_pressure_line(l, "avg10")),
-            pressure_some_avg60: some.as_deref().and_then(|l| parse_pressure_line(l, "avg60")),
-            pressure_full_avg10: full.as_deref().and_then(|l| parse_pressure_line(l, "avg10")),
+            pressure_some_avg10: some
+                .as_deref()
+                .and_then(|l| parse_pressure_line(l, "avg10")),
+            pressure_some_avg60: some
+                .as_deref()
+                .and_then(|l| parse_pressure_line(l, "avg60")),
+            pressure_full_avg10: full
+                .as_deref()
+                .and_then(|l| parse_pressure_line(l, "avg10")),
         };
 
         Ok(serde_json::to_value(reading)?)
@@ -223,7 +257,9 @@ mod tests {
 
     #[test]
     fn samples_this_machine() {
-        let v = MemoryCollector.sample().expect("should read /proc on linux");
+        let v = MemoryCollector
+            .sample()
+            .expect("should read /proc on linux");
         assert!(v["total_kb"].as_u64().unwrap() > 0);
         assert!(v["used_fraction"].as_f64().unwrap() >= 0.0);
     }

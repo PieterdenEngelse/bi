@@ -211,7 +211,9 @@ mod tests {
     #[test]
     #[ignore = "requires a running systemd"]
     fn samples_this_machine() {
-        let v = FailedUnitsCollector.sample().expect("systemctl should be usable");
+        let v = FailedUnitsCollector
+            .sample()
+            .expect("systemctl should be usable");
         assert!(v["count"].as_u64().is_some());
         assert!(v["units"].is_array());
     }

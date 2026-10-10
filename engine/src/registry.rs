@@ -5,9 +5,9 @@ use serde::Serialize;
 use crate::{
     collector::{Collector, Panel, PanelMeta, Sample, Status},
     collectors::{
-        disk::DiskCollector, failed_units::FailedUnitsCollector,
-        generations::GenerationsCollector, memory::MemoryCollector, qt::QtCollector,
-        rust::RustCollector,
+        disk::DiskCollector, failed_units::FailedUnitsCollector, generations::GenerationsCollector,
+        memory::MemoryCollector, qt::QtCollector, qt_runtime::QtRuntimeCollector,
+        qt_wasm::QtWasmCollector, rust::RustCollector, rust_build::RustBuildCollector,
     },
 };
 
@@ -43,7 +43,10 @@ impl Registry {
             Arc::new(GenerationsCollector),
             Arc::new(DiskCollector),
             Arc::new(QtCollector),
+            Arc::new(QtRuntimeCollector),
+            Arc::new(QtWasmCollector),
             Arc::new(RustCollector),
+            Arc::new(RustBuildCollector),
         ])
     }
 

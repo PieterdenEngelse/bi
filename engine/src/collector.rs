@@ -163,7 +163,11 @@ impl Panel {
     }
 
     pub fn latest(&self) -> Option<Sample> {
-        self.history.read().expect("history lock poisoned").back().cloned()
+        self.history
+            .read()
+            .expect("history lock poisoned")
+            .back()
+            .cloned()
     }
 
     pub fn history(&self, limit: usize) -> Vec<Sample> {

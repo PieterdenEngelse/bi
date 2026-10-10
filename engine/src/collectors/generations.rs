@@ -43,12 +43,18 @@ struct GenerationsReading {
 fn link_mtime_ms(path: &Path) -> Option<u64> {
     let meta = std::fs::symlink_metadata(path).ok()?;
     let modified = meta.modified().ok()?;
-    modified.duration_since(UNIX_EPOCH).ok().map(|d| d.as_millis() as u64)
+    modified
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_millis() as u64)
 }
 
 /// `system-42-link` -> 42
 fn generation_number(name: &str) -> Option<u64> {
-    name.strip_prefix("system-")?.strip_suffix("-link")?.parse().ok()
+    name.strip_prefix("system-")?
+        .strip_suffix("-link")?
+        .parse()
+        .ok()
 }
 
 impl Collector for GenerationsCollector {
@@ -141,12 +147,16 @@ impl Collector for GenerationsCollector {
                 let number = generation_number(&name)?;
                 let at = link_mtime_ms(&entry.path())?;
                 let current = current_target.as_deref() == Some(Path::new(&name));
-                Some(Generation { number, at, current })
+                Some(Generation {
+                    number,
+                    at,
+                    current,
+                })
             })
             .collect();
 
         // Newest first: the ones you might roll back to are the ones you just left.
-        generations.sort_by(|a, b| b.number.cmp(&a.number));
+        generations.sort_by_key(|g| std::cmp::Reverse(g.number));
 
         let booted = std::fs::read_link("/run/booted-system").ok();
         let running = std::fs::read_link("/run/current-system").ok();
@@ -208,7 +218,10 @@ mod tests {
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
                 .as_millis() as u64;
-            assert!(ms > 1_000_000_000_000, "got epoch-ish mtime {ms}: followed the symlink");
+            assert!(
+                ms > 1_000_000_000_000,
+                "got epoch-ish mtime {ms}: followed the symlink"
+            );
             assert!(ms <= now + 60_000);
         }
     }
