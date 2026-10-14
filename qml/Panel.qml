@@ -37,7 +37,15 @@ Rectangle {
         return m.length > 0 ? m[0] : null
     }
 
-    implicitHeight: 190
+    /// Opt-in content-driven height. Left at 0 a panel keeps the old fixed
+    /// 190, which FailedUnitsPanel and GenerationsPanel rely on: their bodies
+    /// are `height: parent.height`, so deriving the frame's height from them
+    /// would be circular. Panels whose content is intrinsically sized set this
+    /// to their content item's implicitHeight instead, rather than the frame
+    /// guessing a constant - 190 clipped MemoryPanel's fourth stat row.
+    property real contentHeight: 0
+
+    implicitHeight: contentHeight > 0 ? 14 + body.y + contentHeight + 14 : 190
     radius: 8
     color: palette.base
     border.color: palette.mid
@@ -54,35 +62,51 @@ Rectangle {
         anchors.margins: 14
         spacing: 8
 
-        Row {
+        // The header button is anchored to the right edge rather than being
+        // the last child of the Row. As a Row child it was placed after the
+        // subtitle's reserved width plus the Row's 8px spacing, landing 8px
+        // further right than every StatRow button below it - a one-button
+        // ragged edge down the side of each panel. Anchoring both to the same
+        // right edge is what puts them in one column.
+        Item {
+            id: header
             width: parent.width
-            spacing: 8
+            height: Math.max(headerRow.implicitHeight, headerInfo.height)
 
-            Rectangle {
-                width: 10; height: 10; radius: 5
+            Row {
+                id: headerRow
+                anchors.left: parent.left
+                anchors.right: headerInfo.left
+                anchors.rightMargin: 8
                 anchors.verticalCenter: parent.verticalCenter
-                color: root.stateColors[root.state_] || style.unknownDot
+                spacing: 8
+
+                Rectangle {
+                    width: 10; height: 10; radius: 5
+                    anchors.verticalCenter: parent.verticalCenter
+                    color: root.stateColors[root.state_] || style.unknownDot
+                }
+
+                Label {
+                    text: root.title
+                    font.pixelSize: 15
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Label {
+                    text: root.subtitle
+                    font.pixelSize: 12
+                    opacity: 0.6
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.max(0, headerRow.width - x)
+                    elide: Text.ElideRight
+                }
             }
 
-            Label {
-                text: root.title
-                font.pixelSize: 15
-                font.bold: true
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
-            Label {
-                text: root.subtitle
-                font.pixelSize: 12
-                opacity: 0.6
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(0, parent.width - x - 24)
-                elide: Text.ElideRight
-            }
-
-            // The header button sits at the right edge, deliberately outside
-            // the stat-button column below it.
             InfoButton {
+                id: headerInfo
+                anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 title: root.title
                 what: root.summary && root.summary.info ? root.summary.info.what : ""
@@ -94,7 +118,7 @@ Rectangle {
         Item {
             id: body
             width: parent.width
-            height: parent.height - y
+            height: root.contentHeight > 0 ? root.contentHeight : parent.height - y
         }
     }
 }

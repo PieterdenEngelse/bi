@@ -27,67 +27,80 @@ Item {
     })
 
     ScrollView {
+        id: scroller
         anchors.fill: parent
         anchors.margins: 14
         contentWidth: availableWidth
 
-        ColumnLayout {
-            // Wider cap than the Monitor and Config pages: this one is a
-            // grid, so extra width becomes another column of panels rather
-            // than longer lines.
-            width: Math.min(parent.width, 1700)
-            x: (parent.width - width) / 2
-            spacing: 12
+        // Wrapped rather than being the ScrollView's content item directly.
+        // ScrollView sizes its content item, which fights a Layout that also
+        // assigns its own `width`: the cap stopped applying and panels ran
+        // off the right edge. A plain Item absorbs the sizing instead.
+        Item {
+            width: scroller.availableWidth
+            implicitHeight: colLayout.implicitHeight
 
-            Label {
-                text: root.titles[root.subject] || root.subject
-                font.bold: true
-                font.pixelSize: 18
-            }
+            ColumnLayout {
+                id: colLayout
+                // Full width. Was capped at 1700; extra width here becomes
+                // another column of panels rather than longer lines, so the
+                // grid absorbs it rather than stretching.
+                width: parent.width
+                spacing: 12
 
-            GridLayout {
-                Layout.fillWidth: true
-                // A third column once there is room for one at a readable
-                // width. Panels hold label/value rows, so widening them past
-                // ~550px just pushes the value away from its label.
-                columns: root.width < 640 ? 1 : (root.width >= 1500 ? 3 : 2)
-                columnSpacing: 12
-                rowSpacing: 12
+                Label {
+                    text: root.titles[root.subject] || root.subject
+                    font.bold: true
+                    font.pixelSize: 18
+                }
 
-                Repeater {
-                    model: root.panels
+                GridLayout {
+                    Layout.fillWidth: true
+                    // A third column once there is room for one at a readable
+                    // width. Panels hold label/value rows, so widening them past
+                    // ~550px just pushes the value away from its label.
+                    columns: root.width < 640 ? 1 : (root.width >= 1500 ? 3 : 2)
+                    columnSpacing: 12
+                    rowSpacing: 12
 
-                    Loader {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: item ? item.implicitHeight : 200
+                    Repeater {
+                        model: root.panels
 
-                        property var summary: modelData
+                        Loader {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: item ? item.implicitHeight : 200
 
-                        sourceComponent: {
-                            switch (modelData.id) {
-                            case "memory":       return memoryComp
-                            case "failed-units": return unitsComp
-                            case "generations":  return gensComp
-                            case "disk":         return diskComp
-                            case "qt":           return qtComp
-                            case "rust":         return rustComp
-                            default:             return genericComp
+                            property var summary: modelData
+
+                            sourceComponent: {
+                                switch (modelData.id) {
+                                case "memory":       return memoryComp
+                                case "failed-units": return unitsComp
+                                case "generations":  return gensComp
+                                case "disk":         return diskComp
+                                case "qt":           return qtComp
+                                case "rust":         return rustComp
+                                default:             return genericComp
+                                }
                             }
                         }
                     }
                 }
-            }
 
-            // Actions belonging to this subject. Same component the Config
-            // page uses, so running works identically in both places.
-            ActionsPanel {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 300
-                visible: root.actions.length > 0 || root.actionErrors.length > 0
-                actions: root.actions
-                errors: root.actionErrors
-                apiBase: root.apiBase
-                onRanAction: root.ranAction()
+                // Actions belonging to this subject. Same component the Config
+                // page uses, so running works identically in both places.
+                ActionsPanel {
+                    id: actionsPanel
+                    Layout.fillWidth: true
+                    // Sizes to its content: the page already scrolls, so a fixed
+                    // 300 only buys a second scrollbar and a clipped last action.
+                    Layout.preferredHeight: actionsPanel.implicitHeight
+                    visible: root.actions.length > 0 || root.actionErrors.length > 0
+                    actions: root.actions
+                    errors: root.actionErrors
+                    apiBase: root.apiBase
+                    onRanAction: root.ranAction()
+                }
             }
         }
     }

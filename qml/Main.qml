@@ -90,6 +90,15 @@ ApplicationWindow {
     property string tab: "monitor"   // "monitor" | "config"
     property string subject: ""      // "" = overview; else nixos|qt|rust
 
+    // Display names for the breadcrumb. MonitorPage and SubjectPage each
+    // carry their own copy for their own labels; this is the third and the
+    // one the header reads.
+    readonly property var subjectNames: ({
+        "nixos": "NixOS",
+        "qt": "Qt",
+        "rust": "Rust"
+    })
+
     function panelsFor(subj) {
         return panels.filter(function(p) { return p.subject === subj })
     }
@@ -271,6 +280,49 @@ manual</a> &middot; <a href='https://doc.qt.io/qt-6/'>Qt 6</a> &middot; \
 <a href='https://doc.rust-lang.org/rustc/platform-support.html'>Rust \
 platform support</a>" }
                 ]
+            }
+
+            // Where you are, as a trail. The tab bar says which of the two
+            // pages you are on, but a subject's panels are a level below it
+            // and the only thing naming them was the page's own heading -
+            // which scrolls away. The first crumb is also the way back up.
+            Row {
+                id: crumbs
+                spacing: 5
+                Layout.leftMargin: 4
+                Layout.alignment: Qt.AlignVCenter
+
+                Label {
+                    text: root.tab === "monitor" ? "Monitor" : "Config"
+                    font.pixelSize: 12
+                    // Dimmed only when it is a parent rather than the place
+                    // you are: on the overview this crumb IS the location.
+                    opacity: root.subject === "" ? 0.85 : 0.55
+
+                    // No cursor change and no click on the overview, where
+                    // this crumb leads nowhere. A pointing hand over a label
+                    // that does nothing is a promise the click does not keep.
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: root.subject !== ""
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.subject = ""
+                    }
+                }
+
+                Label {
+                    text: "\u203a"
+                    visible: root.subject !== ""
+                    font.pixelSize: 12
+                    opacity: 0.45
+                }
+
+                Label {
+                    text: root.subjectNames[root.subject] || root.subject
+                    visible: root.subject !== ""
+                    font.pixelSize: 12
+                    font.bold: true
+                }
             }
 
             Item { Layout.fillWidth: true }

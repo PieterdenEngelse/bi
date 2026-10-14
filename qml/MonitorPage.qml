@@ -83,14 +83,12 @@ Item {
         contentWidth: availableWidth
 
         Column {
-            // Capped and centred rather than full-bleed. Maximised on a wide
-            // display these cards stretch into thin bars with the headline
-            // pinned far left and the action count far right, a screen's
-            // width apart - two things you must read together, placed as far
-            // apart as the hardware allows. A measure is what makes them
-            // scannable; the empty margin is doing work.
-            width: Math.min(parent.width, 1100)
-            x: (parent.width - width) / 2
+            // Full width. This was capped at 1100 and centred, on the argument
+            // that a maximised window stretches each card into a thin bar with
+            // the headline pinned far left and the action count far right.
+            // That reasoning stands, but the window is the user's to fill and
+            // the empty margin read as wasted space - so the cap is gone.
+            width: parent.width
             spacing: 12
 
             // Urgent actions sit above the cards: a failed unit should not be
@@ -99,7 +97,7 @@ Item {
                 model: root.urgent
                 Rectangle {
                     width: parent.width
-                    height: 44
+                    height: 52
                     radius: 6
                     color: style.badTint
                     border.color: style.badDot
@@ -108,21 +106,27 @@ Item {
                         anchors.fill: parent
                         anchors.leftMargin: 12
                         anchors.rightMargin: 12
-                        spacing: 8
+                        spacing: 10
 
-                        Rectangle { width: 8; height: 8; radius: 4; color: style.badDot }
+                        Rectangle { width: 10; height: 10; radius: 5; color: style.badDot }
                         Label {
                             text: modelData.title
                             font.bold: true
-                            font.pixelSize: 13
+                            font.pixelSize: 15
                             color: style.badText
                         }
+                        // Was 11px at opacity 0.8. The colour was never the
+                        // problem - #fca5a5 on #3a1d1e is about 7.9:1 - but
+                        // screen-scale.nix downscales a 120% framebuffer, so
+                        // 11px renders smaller than 11px, and the dimming took
+                        // the contrast down to ~5.7:1 on top of that. This is
+                        // the one strip that exists to be read from across the
+                        // room, so it gets full opacity and a readable size.
                         Label {
                             Layout.fillWidth: true
                             text: modelData.why
-                            font.pixelSize: 11
+                            font.pixelSize: 13
                             color: style.badText
-                            opacity: 0.8
                             elide: Text.ElideRight
                         }
                     }

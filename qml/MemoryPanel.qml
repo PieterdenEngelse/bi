@@ -18,7 +18,12 @@ Panel {
 
     // title, subtitle and state_ come from the engine via Panel.
 
+    // 64px sparkline plus four stat rows does not fit the frame's default
+    // 190, which is what clipped "stall 60s" off the bottom.
+    contentHeight: col.implicitHeight
+
     Column {
+        id: col
         width: parent.width
         spacing: 6
 

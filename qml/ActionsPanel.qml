@@ -210,12 +210,23 @@ nixdash has no privilege of its own, so that prompt is what permits it."
         clip.deselect()
     }
 
-    ScrollView {
+    // Reported so a caller can let the panel size itself, which both pages
+    // now do: nesting a fixed-height scroller inside an already scrolling
+    // page cut the second action's buttons in half on SubjectPage, and on
+    // ConfigPage it swallowed the wheel without ever scrolling.
+    contentHeight: actionsCol.implicitHeight
+
+    // No scroller of its own. Both pages size this panel to its content and
+    // do the scrolling themselves, and a Flickable accepts wheel events even
+    // when it has nothing left to scroll - so with the cursor over the panel
+    // the page underneath stopped moving, which reads as a dead mouse wheel
+    // rather than as a nested scroll area.
+    Item {
         anchors.fill: parent
         clip: true
-        contentWidth: availableWidth
 
         Column {
+            id: actionsCol
             width: parent.width
             spacing: 10
 
@@ -245,11 +256,21 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                 anchors.verticalCenter: parent.verticalCenter
                                 color: root.urgencyColors[modelData.urgency] || style.unknownDot
                             }
-                            Label {
+                            // Selectable, like everything else that carries
+                            // content rather than chrome. A click takes the
+                            // whole of it - see ConfigSection.qml for why a
+                            // click and not a drag.
+                            TextEdit {
+                                id: titleText
                                 text: modelData.title
+                                readOnly: true
+                                selectByMouse: true
                                 font.bold: true
                                 font.pixelSize: 13
+                                color: palette.text
                                 anchors.verticalCenter: parent.verticalCenter
+
+                                TapHandler { onTapped: titleText.selectAll() }
                             }
                             // Mechanism and risk: what a bare command line
                             // cannot tell you.
@@ -414,12 +435,18 @@ systemd.exec(5)</a>." }
                             }
                         }
 
-                        Label {
+                        TextEdit {
+                            id: whyText
                             width: parent.width
                             text: modelData.why
+                            readOnly: true
+                            selectByMouse: true
                             font.pixelSize: 11
                             opacity: 0.75
-                            wrapMode: Text.WordWrap
+                            color: palette.text
+                            wrapMode: TextEdit.Wrap
+
+                            TapHandler { onTapped: whyText.selectAll() }
                         }
 
                         // The command. Selectable so it can be copied by hand
@@ -442,6 +469,11 @@ systemd.exec(5)</a>." }
                                 font.family: "monospace"
                                 font.pixelSize: 11
                                 color: palette.text
+
+                                // Makes the advice in Copy's info panel - "select
+                                // it and copy it by hand" - a single click rather
+                                // than a drag across a wrapped block.
+                                TapHandler { onTapped: cmd.selectAll() }
                             }
                         }
 
@@ -664,17 +696,24 @@ generations that would be your rollback targets." }
                             color: res && res.ok ? style.okTint : style.badTint
                             border.color: res && res.ok ? style.okDot : style.badDot
 
-                            Label {
+                            // Selectable above all the others: a failure
+                            // message is the thing you most want to paste
+                            // somewhere else.
+                            TextEdit {
                                 id: resLbl
                                 x: 7; y: 6
                                 width: parent.width - 14
                                 text: parent.res
                                       ? (parent.res.ok ? "✓ " : "✗ ") + parent.res.text
                                       : ""
+                                readOnly: true
+                                selectByMouse: true
                                 color: parent.res && parent.res.ok ? style.okText : style.badText
                                 font.family: "monospace"
                                 font.pixelSize: 10
-                                wrapMode: Text.Wrap
+                                wrapMode: TextEdit.Wrap
+
+                                TapHandler { onTapped: resLbl.selectAll() }
                             }
                         }
                     }
@@ -692,12 +731,17 @@ generations that would be your rollback targets." }
 
             Repeater {
                 model: root.errors
-                Label {
+                TextEdit {
+                    id: errText
                     width: parent.width
                     text: "probe " + modelData.provider + " failed: " + modelData.error
+                    readOnly: true
+                    selectByMouse: true
                     color: style.warnDot
                     font.pixelSize: 11
-                    wrapMode: Text.WordWrap
+                    wrapMode: TextEdit.Wrap
+
+                    TapHandler { onTapped: errText.selectAll() }
                 }
             }
         }
