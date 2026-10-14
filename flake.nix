@@ -116,6 +116,19 @@
         # its -L via NIX_LDFLAGS.
         buildInputs = [ pkgs.libglvnd ];
 
+        # Silences the wall of "_FORTIFY_SOURCE requires compiling with
+        # optimization (-O)" from every generated cxx-qt translation unit.
+        # The cc wrapper puts -O2 -D_FORTIFY_SOURCE=3 around each compile;
+        # a plain `cargo build` then passes -O0, which wins because it comes
+        # later, and glibc's #warning fires once per file. Fortify does
+        # nothing at -O0 anyway, so turning it off in the dev shell loses no
+        # checking. BOTH names are needed: fortify3 re-implies fortify and
+        # then overrides it, so dropping only `fortify` changes nothing -
+        # verified by the -D_FORTIFY_SOURCE define surviving. This is the dev
+        # shell only; the packaged build is a separate derivation with its own
+        # hardening, and it builds optimised where fortify works.
+        hardeningDisable = [ "fortify" "fortify3" ];
+
         QMAKE = "${qtEnv}/bin/qmake";
         RUST_LOG = "nixdash_engine=debug,tower_http=warn";
 
