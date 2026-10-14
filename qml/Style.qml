@@ -41,6 +41,23 @@ QtObject {
     readonly property color textMuted:  "#9ca3af"
     readonly property color textStrong: "#f3f4f6"
 
+    // **Text is never dimmed with `opacity`.** Hierarchy comes from size,
+    // weight and the colours above - not from alpha. Alpha was doing that job
+    // in 27 places and it is what put secondary text under the floor: 0.6 on
+    // #d1d5db over #22272e composites to about #8b9096, darker than the
+    // #9ca3af this file calls the limit, and the label column of every
+    // StatRow was sitting there. The floor is only a floor if nothing is
+    // allowed to multiply its way below it afterwards.
+    //
+    // screen-scale.nix makes it worse than the numbers suggest: it downscales
+    // a 120% framebuffer, so small text renders smaller than its pixelSize
+    // and the dimming lands on top of that. MonitorPage's why-strip carries
+    // the worked example.
+    //
+    // Opacity on a *shape* is a different thing and still fine - the disk
+    // bar's fill, the info button's hover, the ✓ watermark behind an empty
+    // unit list. None of those are read.
+
     readonly property color link:       "#60a5fa"
     readonly property color linkHover:  "#93c5fd"
 
