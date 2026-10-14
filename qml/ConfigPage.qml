@@ -71,8 +71,8 @@ Item {
                     + "declared in a Nix file; nixdash shows what is in effect "
                     + "and where it comes from. Changes to Nix config are "
                     + "snippets you paste - only shell actions below can be run. "
-                    + "Click a section to select all of it, or drag across the "
-                    + "lines you want."
+                    + "Drag across the lines you want to select them; "
+                    + "Ctrl+A takes the whole section."
             }
 
             // Two and three columns rather than one tall stack: at full width

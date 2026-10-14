@@ -257,20 +257,14 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                 color: root.urgencyColors[modelData.urgency] || style.unknownDot
                             }
                             // Selectable, like everything else that carries
-                            // content rather than chrome. A click takes the
-                            // whole of it - see ConfigSection.qml for why a
-                            // click and not a drag.
-                            TextEdit {
+                            // content rather than chrome.
+                            SelectableText {
                                 id: titleText
                                 text: modelData.title
-                                readOnly: true
-                                selectByMouse: true
                                 font.bold: true
                                 font.pixelSize: 13
                                 color: palette.text
                                 anchors.verticalCenter: parent.verticalCenter
-
-                                TapHandler { onTapped: titleText.selectAll() }
                             }
                             // Mechanism and risk: what a bare command line
                             // cannot tell you.
@@ -435,18 +429,14 @@ systemd.exec(5)</a>." }
                             }
                         }
 
-                        TextEdit {
+                        SelectableText {
                             id: whyText
                             width: parent.width
                             text: modelData.why
-                            readOnly: true
-                            selectByMouse: true
                             font.pixelSize: 11
                             opacity: 0.75
                             color: palette.text
                             wrapMode: TextEdit.Wrap
-
-                            TapHandler { onTapped: whyText.selectAll() }
                         }
 
                         // The command. Selectable so it can be copied by hand
@@ -458,22 +448,15 @@ systemd.exec(5)</a>." }
                             color: palette.alternateBase
                             border.color: palette.mid
 
-                            TextEdit {
+                            SelectableText {
                                 id: cmd
                                 x: 7; y: 6
                                 width: parent.width - 14
                                 text: modelData.command
-                                readOnly: true
-                                selectByMouse: true
                                 wrapMode: TextEdit.Wrap
                                 font.family: "monospace"
                                 font.pixelSize: 11
                                 color: palette.text
-
-                                // Makes the advice in Copy's info panel - "select
-                                // it and copy it by hand" - a single click rather
-                                // than a drag across a wrapped block.
-                                TapHandler { onTapped: cmd.selectAll() }
                             }
                         }
 
@@ -699,21 +682,17 @@ generations that would be your rollback targets." }
                             // Selectable above all the others: a failure
                             // message is the thing you most want to paste
                             // somewhere else.
-                            TextEdit {
+                            SelectableText {
                                 id: resLbl
                                 x: 7; y: 6
                                 width: parent.width - 14
                                 text: parent.res
                                       ? (parent.res.ok ? "✓ " : "✗ ") + parent.res.text
                                       : ""
-                                readOnly: true
-                                selectByMouse: true
                                 color: parent.res && parent.res.ok ? style.okText : style.badText
                                 font.family: "monospace"
                                 font.pixelSize: 10
                                 wrapMode: TextEdit.Wrap
-
-                                TapHandler { onTapped: resLbl.selectAll() }
                             }
                         }
                     }
@@ -731,17 +710,13 @@ generations that would be your rollback targets." }
 
             Repeater {
                 model: root.errors
-                TextEdit {
+                SelectableText {
                     id: errText
                     width: parent.width
                     text: "probe " + modelData.provider + " failed: " + modelData.error
-                    readOnly: true
-                    selectByMouse: true
                     color: style.warnDot
                     font.pixelSize: 11
                     wrapMode: TextEdit.Wrap
-
-                    TapHandler { onTapped: errText.selectAll() }
                 }
             }
         }

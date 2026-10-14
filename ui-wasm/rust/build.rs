@@ -26,6 +26,7 @@ fn main() {
             "qml/GenericPanel.qml",
             "qml/InfoButton.qml",
             "qml/StatRow.qml",
+            "qml/SelectableText.qml",
             "qml/QtPanel.qml",
             "qml/RustPanel.qml",
             "qml/Panel.qml",

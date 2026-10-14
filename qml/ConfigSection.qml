@@ -62,13 +62,11 @@ Rectangle {
         y: 12
         width: parent.width - 28
 
-        TextEdit {
+        SelectableText {
             id: body
             width: parent.width
             text: root.sectionHtml()
             textFormat: TextEdit.RichText
-            readOnly: true
-            selectByMouse: true
             // Word boundaries first, mid-word only when a run has none - which
             // is every store path.
             wrapMode: TextEdit.Wrap
@@ -79,13 +77,8 @@ Rectangle {
             // lands well under that floor; rich text has no per-span opacity
             // anyway, so both columns now use the named colour.
 
-            // A click selects the whole section. Dragging gives you a precise
-            // range when the pointer cooperates, but a 13px row inside a
-            // Flickable is a gesture the page can decide was a scroll - and
-            // then the half-made selection is gone. A click cannot be
-            // mistaken for a scroll, and a whole section is the thing you
-            // most often want anyway.
-            TapHandler { onTapped: body.selectAll() }
+            // Drag selection is precise here because SelectableText stops the
+            // page scroller from claiming the drag halfway through; see there.
         }
     }
 }
