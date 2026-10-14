@@ -14,21 +14,15 @@ Panel {
 
     // Size to the stat count rather than the Panel default, so a long list is
     // not silently clipped at the bottom of the card.
-    implicitHeight: 62 + (summary && summary.stats ? summary.stats.length : 0) * 21
+    // Content-driven, via Panel's own mechanism: the readings are one text
+    // block now, and a block whose values wrap is taller than stat-count
+    // arithmetic can predict.
+    contentHeight: col.implicitHeight
 
+    // The formatting itself lives in Panel, so the header's Copy and these
+    // rows cannot disagree about what a value looks like.
     function render(v) {
-        if (v === null || v === undefined)
-            return "—"
-        // Not Array.isArray: a JSON array reaching QML through a `var`
-        // property arrives as a QVariantList, which fails that check and
-        // would fall through to JSON.stringify. Duck-type instead.
-        if (typeof v === "object" && typeof v.length === "number")
-            return v.length === 0 ? "none" : Array.prototype.join.call(v, ", ")
-        if (typeof v === "boolean")
-            return v ? "yes" : "no"
-        if (typeof v === "object")
-            return JSON.stringify(v)
-        return String(v)
+        return root.renderValue(v)
     }
 
     // A plain Column, not a ScrollView. The panel sizes to its stat count
@@ -37,30 +31,37 @@ Panel {
     // button unclickable. The header button worked only because it sits
     // outside the scrolled area.
     Column {
+        id: col
         anchors.fill: parent
         spacing: 3
 
         // Driven by the engine's stat list rather than the value's own keys:
         // the stats carry a documented order and are guaranteed by test to
         // cover every key emitted.
-        Repeater {
-            model: root.summary ? root.summary.stats : []
-
-            StatRow {
-                label: modelData.key
-                value: root.render(root.value ? root.value[modelData.key] : null)
-                panel: root
-                statKey: modelData.key
+        StatBlock {
+            panel: root
+            rows: {
+                var stats = root.summary && root.summary.stats
+                          ? root.summary.stats : []
+                var out = []
+                for (var i = 0; i < stats.length; i++)
+                    out.push({ label: stats[i].key,
+                               value: root.render(root.value
+                                                  ? root.value[stats[i].key]
+                                                  : null),
+                               statKey: stats[i].key })
+                return out
             }
         }
 
-        Label {
+        // A failed probe is the thing you most want to paste somewhere else.
+        SelectableText {
             visible: root.summary && root.summary.error
             width: parent.width
             text: root.summary ? "error: " + root.summary.error : ""
             color: style.warnDot
             font.pixelSize: 11
-            wrapMode: Text.WordWrap
+            wrapMode: TextEdit.Wrap
         }
     }
 }

@@ -111,11 +111,10 @@ Panel {
         contentItem: Column {
             spacing: 9
 
-            Label {
+            SelectableText {
                 width: parent.width
-                wrapMode: Text.WordWrap
+                wrapMode: TextEdit.Wrap
                 font.pixelSize: 11
-                opacity: 0.8
                 text: "This will execute, as written:"
             }
 
@@ -125,52 +124,53 @@ Panel {
                 radius: 4
                 color: palette.alternateBase
                 border.color: palette.mid
-                Label {
+                // The exact argv about to run as root. Selectable above
+                // all else: this is the line you check, and the one you want
+                // in a bug report if it did something unexpected.
+                SelectableText {
                     id: argv
                     x: 7; y: 6
                     width: parent.width - 14
                     text: root.argvLine(confirm.action ? confirm.action.run : null)
                     font.family: "monospace"
                     font.pixelSize: 11
-                    wrapMode: Text.WrapAnywhere
+                    wrapMode: TextEdit.WrapAnywhere
                 }
             }
 
             // Why this is not simply the command shown in the panel.
-            Label {
+            SelectableText {
                 width: parent.width
                 visible: confirm.action
                          && confirm.action.command.indexOf("\n") >= 0
-                wrapMode: Text.WordWrap
+                wrapMode: TextEdit.Wrap
                 font.pixelSize: 10
-                opacity: 0.6
                 text: "The block in the panel also lists an inspection or \
 dry-run step. Only the line above runs."
             }
 
-            Label {
+            SelectableText {
                 width: parent.width
                 visible: confirm.action && confirm.action.needs_root
-                wrapMode: Text.WordWrap
+                wrapMode: TextEdit.Wrap
                 font.pixelSize: 11
                 text: "Needs root. polkit will ask you to authenticate - \
 nixdash has no privilege of its own, so that prompt is what permits it."
             }
 
-            Label {
+            SelectableText {
                 width: parent.width
-                wrapMode: Text.WordWrap
+                wrapMode: TextEdit.Wrap
                 font.pixelSize: 11
                 text: confirm.action
                       ? "Effects:\n  · " + confirm.action.effects.join("\n  · ")
                       : ""
             }
 
-            Label {
+            SelectableText {
                 width: parent.width
-                wrapMode: Text.WordWrap
+                wrapMode: TextEdit.Wrap
                 font.pixelSize: 10
-                opacity: 0.7
                 text: confirm.action && confirm.action.info
                       ? confirm.action.info.if_wrong : ""
             }
@@ -195,19 +195,27 @@ nixdash has no privilege of its own, so that prompt is what permits it."
           : actions.length > 0 ? "warn"
           : "ok"
 
-    // Off-screen helper: QML has no clipboard API, but TextEdit.copy() works
-    // on both desktop and wasm (a button press is the user gesture the
-    // browser requires).
-    TextEdit {
-        id: clip
-        visible: false
-        readOnly: true
-    }
+    Clipboard { id: actionClip }
     function copyToClipboard(text) {
-        clip.text = text
-        clip.selectAll()
-        clip.copy()
-        clip.deselect()
+        actionClip.put(text)
+    }
+
+    // What the inherited Ctrl+Shift+C hands back for this pane: every
+    // suggested action, each with the command as displayed. Panel's own
+    // version would give the headline and nothing else - this panel has no
+    // readings, it has a list.
+    extraText: {
+        var out = ""
+        for (var i = 0; i < root.actions.length; i++) {
+            var a = root.actions[i]
+            out += a.title + "\t" + a.urgency + "\t"
+                 + (a.kind === "nix" ? "nix snippet" : "shell") + "\n"
+                 + a.command + "\n\n"
+        }
+        for (var j = 0; j < root.errors.length; j++)
+            out += "probe " + root.errors[j].provider + " failed: "
+                 + root.errors[j].error + "\n"
+        return out
     }
 
     // Reported so a caller can let the panel size itself, which both pages
@@ -285,7 +293,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                 radius: 3
                                 color: modelData.kind === "nix" ? style.nixBadgeTint : style.shellBadgeTint
                                 anchors.verticalCenter: parent.verticalCenter
-                                Label {
+                                SelectableText {
                                     id: kindLbl
                                     anchors.centerIn: parent
                                     text: modelData.kind === "nix"
@@ -302,7 +310,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                 radius: 3
                                 color: style.rootBadgeTint
                                 anchors.verticalCenter: parent.verticalCenter
-                                Label {
+                                SelectableText {
                                     id: rootLbl
                                     anchors.centerIn: parent
                                     text: "needs root"
@@ -342,16 +350,15 @@ do, briefly.</li></ul>"
                                     { title: "The three pieces", body: "\
 polkit is not one program. Three cooperate, and knowing which is which turns \
 most failures into one-line diagnoses.<br><br>\
-<table cellpadding='5'>\
-<tr><td><b>polkitd</b></td><td>The judge. A daemon running as root. Decides \
-yes, no, or 'ask'. Has the authority but no screen.</td></tr>\
-<tr><td><b>Authentication agent</b></td><td>The face. Runs in <i>your</i> \
-desktop session - on Xfce usually \
-<tt>polkit-gnome-authentication-agent-1</tt>. Draws the password dialog. Has \
-your screen but no authority.</td></tr>\
-<tr><td><b>pkexec</b></td><td>A client. A small setuid program that runs \
-another program as root - but only after polkitd agrees.</td></tr>\
-</table><br>\
+<ul>\
+<li><b>polkitd</b> - the judge. A daemon running as root. Decides yes, no, or \
+'ask'. Has the authority but no screen.</li>\
+<li><b>Authentication agent</b> - the face. Runs in <i>your</i> desktop \
+session - on Xfce usually <tt>polkit-gnome-authentication-agent-1</tt>. Draws \
+the password dialog. Has your screen but no authority.</li>\
+<li><b>pkexec</b> - a client. A small setuid program that runs another \
+program as root, but only after polkitd agrees.</li>\
+</ul><br>\
 That split is why an agent must be running: with none, there is nobody to ask, \
 and the request fails rather than hanging. nixdash passes \
 <tt>--disable-internal-agent</tt> to <tt>pkexec</tt> precisely so it fails \
@@ -369,30 +376,26 @@ treated differently from the person sitting at the machine.<br><br>\
 XML files shipped by whichever package needs them; this machine has about 33. \
 Naming matters: permission is granted per action, not per user wholesale.<br><br>\
 <b>3. The rules</b> - each action declares a default:<br>\
-<table cellpadding='4'>\
-<tr><td><tt>yes</tt></td><td>allowed, no prompt</td></tr>\
-<tr><td><tt>no</tt></td><td>refused outright</td></tr>\
-<tr><td><tt>auth_self</tt></td><td>prove you are you - your own \
-password</td></tr>\
-<tr><td><tt>auth_admin</tt></td><td>prove you are an administrator</td></tr>\
-<tr><td><tt>*_keep</tt></td><td>as above, but remembered for a short \
-while</td></tr>\
-</table><br>\
+<ul>\
+<li><tt>yes</tt> - allowed, no prompt</li>\
+<li><tt>no</tt> - refused outright</li>\
+<li><tt>auth_self</tt> - prove you are you: your own password</li>\
+<li><tt>auth_admin</tt> - prove you are an administrator</li>\
+<li><tt>*_keep</tt> - as above, but remembered for a short while</li>\
+</ul><br>\
 JavaScript rules in <tt>/etc/polkit-1/rules.d</tt> can override any of this \
 per user, per group or per action - which is how you would make a specific \
 action passwordless without weakening everything else." },
                                     { title: "Why not sudo", body: "\
-<table cellpadding='5'>\
-<tr><td></td><td><b>sudo</b></td><td><b>polkit</b></td></tr>\
-<tr><td>Configured by</td><td><tt>/etc/sudoers</tt>, one \
-file</td><td>per-action policies plus JS rules</td></tr>\
-<tr><td>Granularity</td><td>which commands a user may run</td><td>named \
-actions, with session context</td></tr>\
-<tr><td>Prompts via</td><td>the <b>terminal</b></td><td>a desktop agent, any \
-session</td></tr>\
-<tr><td>Mechanism</td><td>a setuid binary</td><td>D-Bus to a \
-daemon</td></tr>\
-</table><br>\
+<ul>\
+<li><b>Configured by</b> - sudo: <tt>/etc/sudoers</tt>, one file. polkit: \
+per-action policies plus JavaScript rules.</li>\
+<li><b>Granularity</b> - sudo: which commands a user may run. polkit: named \
+actions, with session context.</li>\
+<li><b>Prompts via</b> - sudo: the <b>terminal</b>. polkit: a desktop agent, \
+in any session.</li>\
+<li><b>Mechanism</b> - sudo: a setuid binary. polkit: D-Bus to a daemon.</li>\
+</ul><br>\
 The prompting row is the decisive one here. nixdash's engine is a systemd \
 <i>user service</i> with no controlling terminal. sudo would have nowhere to \
 read a password from. polkit's agent lives in your graphical session and can \
@@ -434,7 +437,6 @@ systemd.exec(5)</a>." }
                             width: parent.width
                             text: modelData.why
                             font.pixelSize: 11
-                            opacity: 0.75
                             color: palette.text
                             wrapMode: TextEdit.Wrap
                         }
@@ -498,18 +500,17 @@ which kind it is.</li></ul>"
                                     { title: "Copy vs Run", body: "\
 These two buttons put <b>different text</b> in play. It is the single most \
 important thing about this panel.<br><br>\
-<table cellpadding='4'>\
-<tr><td><b></b></td><td><b>Copy</b></td><td><b>Run</b></td></tr>\
-<tr><td>Text</td><td>the whole displayed block</td><td>one explicit \
-program + arguments</td></tr>\
-<tr><td>Runs as</td><td>you, interactively</td><td>the engine, via a polkit \
-prompt</td></tr>\
-<tr><td>Environment</td><td>your shell: your PATH, your \
-<tt>nix develop</tt></td><td>the systemd user service's</td></tr>\
-<tr><td>Dry-run line</td><td>included</td><td>excluded</td></tr>\
-<tr><td>Nix snippets</td><td>yes, that is the point</td><td>refused - nothing \
-to execute</td></tr>\
-</table><br>\
+<ul>\
+<li><b>Text</b> - Copy: the whole displayed block. Run: one explicit program \
+plus arguments.</li>\
+<li><b>Runs as</b> - Copy: you, interactively. Run: the app's background \
+service, via a polkit prompt.</li>\
+<li><b>Environment</b> - Copy: your shell, with your PATH and your \
+<tt>nix develop</tt>. Run: the background service's own.</li>\
+<li><b>Dry-run line</b> - Copy: included. Run: excluded.</li>\
+<li><b>Nix snippets</b> - Copy: yes, that is the point. Run: refused, there \
+is nothing to execute.</li>\
+</ul><br>\
 Neither is the \"safe\" one. Copy gives you a chance to read and edit before \
 anything happens, but pasting a whole block unread is how you run a deletion \
 you only meant to preview. Run executes exactly one known line, but does it \
@@ -656,12 +657,12 @@ Garbage collection with <tt>-d</tt> is the exception: it deletes the \
 generations that would be your rollback targets." }
                                 ]
                             }
-                            Label {
+                            SelectableText {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.effects.join("  ·  ")
                                 font.pixelSize: 10
-                                opacity: 0.6
-                                elide: Text.ElideRight
+                                wrapMode: TextEdit.NoWrap
+                                clip: true
                                 width: Math.max(0, parent.width - 230)
                             }
                         }
@@ -699,13 +700,12 @@ generations that would be your rollback targets." }
                 }
             }
 
-            Label {
+            SelectableText {
                 visible: root.actions.length === 0 && root.errors.length === 0
                 width: parent.width
-                horizontalAlignment: Text.AlignHCenter
+                horizontalAlignment: TextEdit.AlignHCenter
                 topPadding: 20
                 text: "Nothing needs doing."
-                opacity: 0.5
             }
 
             Repeater {

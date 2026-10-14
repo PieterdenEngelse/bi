@@ -56,23 +56,24 @@ Item {
             width: parent.width
             spacing: 14
 
-            Label {
+            SelectableText {
                 text: "Configuration"
                 font.bold: true
                 font.pixelSize: 18
             }
 
-            Label {
+            SelectableText {
                 width: parent.width
-                wrapMode: Text.WordWrap
+                wrapMode: TextEdit.Wrap
                 font.pixelSize: 11
-                opacity: 0.7
                 text: "These values are read-only by design. Everything here is "
                     + "declared in a Nix file; nixdash shows what is in effect "
                     + "and where it comes from. Changes to Nix config are "
                     + "snippets you paste - only shell actions below can be run. "
-                    + "Drag across the lines you want to select them; "
-                    + "Ctrl+A takes the whole section."
+                    + "Drag across the rows to select exactly what you "
+                    + "drag, Ctrl+A for a whole section, or Ctrl+Shift+C to "
+                    + "copy the section under the pointer as tab-separated "
+                    + "text."
             }
 
             // Two and three columns rather than one tall stack: at full width

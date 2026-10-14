@@ -109,7 +109,7 @@ Item {
                         spacing: 10
 
                         Rectangle { width: 10; height: 10; radius: 5; color: style.badDot }
-                        Label {
+                        SelectableText {
                             text: modelData.title
                             font.bold: true
                             font.pixelSize: 15
@@ -122,12 +122,13 @@ Item {
                         // the contrast down to ~5.7:1 on top of that. This is
                         // the one strip that exists to be read from across the
                         // room, so it gets full opacity and a readable size.
-                        Label {
+                        SelectableText {
                             Layout.fillWidth: true
                             text: modelData.why
                             font.pixelSize: 13
                             color: style.badText
-                            elide: Text.ElideRight
+                            wrapMode: TextEdit.NoWrap
+                            clip: true
                         }
                     }
                 }
@@ -143,13 +144,18 @@ Item {
                     color: hover.hovered ? palette.alternateBase : palette.base
                     border.color: palette.mid
 
-                    MouseArea {
+                    // Handlers, not a MouseArea: a TapHandler on its default
+                    // DragThreshold policy takes only a PASSIVE grab, so the
+                    // selectable text below still receives the moves that
+                    // extend a selection - and a drag past the threshold
+                    // cancels the tap, so selecting text does not also
+                    // navigate. A click still opens the subject.
+                    HoverHandler {
                         id: hover
-                        anchors.fill: parent
-                        hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.openSubject(modelData.key)
-                        property bool hovered: containsMouse
+                    }
+                    TapHandler {
+                        onTapped: root.openSubject(modelData.key)
                     }
 
                     RowLayout {
@@ -163,30 +169,36 @@ Item {
                             color: root.statusColors[root.worstOf(modelData.key)] || style.unknownDot
                         }
 
-                        ColumnLayout {
+                        // Name and headline in ONE text item, not two
+                        // stacked ones: a drag selects only inside the item
+                        // it started in, so two items meant the card's text
+                        // could never be taken in one go. Muted by colour
+                        // rather than opacity - rich text has no per-span
+                        // opacity. Clipped rather than elided (TextEdit has
+                        // no elide); the card is a fixed 86px, so the
+                        // headline keeps to its one line.
+                        SelectableText {
+                            id: cardText
                             Layout.fillWidth: true
-                            spacing: 3
-                            Label {
-                                text: modelData.name
-                                font.bold: true
-                                font.pixelSize: 16
-                            }
-                            Label {
-                                Layout.fillWidth: true
-                                text: root.headlineOf(modelData.key)
-                                font.pixelSize: 12
-                                opacity: 0.7
-                                elide: Text.ElideRight
-                            }
+                            textFormat: TextEdit.RichText
+                            wrapMode: TextEdit.NoWrap
+                            clip: true
+                            text: "<div><span style='font-size:16px; "
+                                + "font-weight:bold'>"
+                                + cardText.esc(modelData.name)
+                                + "</span></div><div><span "
+                                + "style='font-size:12px; color:"
+                                + style.textMuted + "'>"
+                                + cardText.esc(root.headlineOf(modelData.key))
+                                + "</span></div>"
                         }
 
-                        Label {
+                        SelectableText {
                             text: {
                                 var n = root.actionsOf(modelData.key).length
                                 return n === 0 ? "—" : n + (n === 1 ? " action" : " actions")
                             }
                             font.pixelSize: 12
-                            opacity: 0.6
                         }
 
                         // The dot's rule is not visible from the dot. Sits
@@ -214,19 +226,19 @@ unhappy.</li>\
 header is red, the window is not reaching the engine.</li></ul>"
                             sections: [
                                 { title: "The colours", body: "\
-<table cellpadding='5'>\
-<tr><td><b>Green</b> - ok</td><td>Nothing to do. Most of the time every card \
-should be this, which is the point of the page.</td></tr>\
-<tr><td><b>Amber</b> - warn</td><td>Drifting, and worth dealing with at a \
-time of your choosing. A disk past 85%, or a toolchain missing a target you \
-are not currently building for.</td></tr>\
-<tr><td><b>Red</b> - bad</td><td>Wrong now. A failed unit, a disk past 93%, a \
-Qt prefix that will break the next build.</td></tr>\
-<tr><td><b>Grey</b> - unknown</td><td>The engine could not measure it. \
-Deliberately <i>not</i> green: 'no failures found' and 'I could not look' are \
-different answers, and conflating them is how a monitor reassures you about \
-something it never checked.</td></tr>\
-</table><br>\
+<ul>\
+<li><b>Green</b> - ok. Nothing to do. Most of the time every card should be \
+this, which is the point of the page.</li>\
+<li><b>Amber</b> - warn. Drifting, and worth dealing with at a time of your \
+choosing. A disk past 85%, or a toolchain missing a target you are not \
+currently building for.</li>\
+<li><b>Red</b> - bad. Wrong now. A failed unit, a disk past 93%, a Qt prefix \
+that will break the next build.</li>\
+<li><b>Grey</b> - unknown. It could not be measured. Deliberately <i>not</i> \
+green: 'no failures found' and 'I could not look' are different answers, and \
+conflating them is how a monitor reassures you about something it never \
+checked.</li>\
+</ul><br>\
 The thresholds live in the engine, with the panel that owns them, so both \
 this window and the browser build show the same verdict. Each panel's own \
 info button gives its exact numbers." },
@@ -247,17 +259,16 @@ down the list." }
                             ]
                         }
 
-                        Label { text: "›"; font.pixelSize: 20; opacity: 0.4 }
+                        Label { text: "›"; font.pixelSize: 20 }
                     }
                 }
             }
 
-            Label {
+            SelectableText {
                 width: parent.width
-                horizontalAlignment: Text.AlignHCenter
+                horizontalAlignment: TextEdit.AlignHCenter
                 topPadding: 10
                 text: root.panels.length === 0 ? "waiting for the engine…" : ""
-                opacity: 0.5
                 font.pixelSize: 12
             }
         }

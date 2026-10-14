@@ -29,7 +29,7 @@ Rectangle {
 
     readonly property var value: summary && summary.latest ? summary.latest.value : null
 
-    /// Look up the engine's explanation for one field, for StatRow.
+    /// Look up the engine's explanation for one field, for StatBlock.
     function infoFor(key) {
         if (!summary || !summary.stats)
             return null
@@ -50,6 +50,58 @@ Rectangle {
     color: palette.base
     border.color: palette.mid
 
+    /// Formats one engine value for display. Lives here rather than in
+    /// GenericPanel because the header's Copy needs exactly the same
+    /// formatting, and two implementations would drift.
+    function renderValue(v) {
+        if (v === null || v === undefined)
+            return "—"
+        // Not Array.isArray: a JSON array reaching QML through a `var`
+        // property arrives as a QVariantList, which fails that check and
+        // would fall through to JSON.stringify. Duck-type instead.
+        if (typeof v === "object" && typeof v.length === "number")
+            return v.length === 0 ? "none" : Array.prototype.join.call(v, ", ")
+        if (typeof v === "boolean")
+            return v ? "yes" : "no"
+        if (typeof v === "object")
+            return JSON.stringify(v)
+        return String(v)
+    }
+
+    /// Lines appended to panelText() by panels whose content is a list
+    /// rather than readings - the units and the generations. Without it the
+    /// Copy on those two panels would hand back a header and nothing else.
+    property string extraText: ""
+
+    /// The whole pane as plain text: title, headline, then one line per stat.
+    /// A selection cannot cross from one text item into the next - Qt shares
+    /// a selection only within a single item - and the rows cannot be merged
+    /// into one item without losing the per-stat info buttons. So taking the
+    /// whole pane is a button rather than a drag.
+    function panelText() {
+        var out = root.title + "\n" + root.subtitle + "\n"
+        var stats = root.summary && root.summary.stats ? root.summary.stats : []
+        for (var i = 0; i < stats.length; i++) {
+            var k = stats[i].key
+            out += k + "\t" + root.renderValue(root.value ? root.value[k] : null) + "\n"
+        }
+        return out + root.extraText
+    }
+
+    Clipboard { id: clip }
+
+    // Ctrl+Shift+C copies this whole pane, but only while the pointer is over
+    // it. Scoping it to hover is what keeps one shortcut unambiguous across
+    // a dozen panels: exactly one can be hovered, so exactly one of these is
+    // ever enabled, and with none hovered the window's own copy takes over
+    // and hands back the whole page.
+    HoverHandler { id: paneHover }
+    Shortcut {
+        sequences: [ "Ctrl+Shift+C" ]
+        enabled: paneHover.hovered
+        onActivated: clip.put(root.panelText())
+    }
+
     readonly property var stateColors: ({
         "ok":    style.okDot,
         "warn":  style.warnDot,
@@ -65,7 +117,7 @@ Rectangle {
         // The header button is anchored to the right edge rather than being
         // the last child of the Row. As a Row child it was placed after the
         // subtitle's reserved width plus the Row's 8px spacing, landing 8px
-        // further right than every StatRow button below it - a one-button
+        // further right than every StatBlock button below it - a one-button
         // ragged edge down the side of each panel. Anchoring both to the same
         // right edge is what puts them in one column.
         Item {
@@ -87,20 +139,23 @@ Rectangle {
                     color: root.stateColors[root.state_] || style.unknownDot
                 }
 
-                Label {
+                SelectableText {
                     text: root.title
                     font.pixelSize: 15
                     font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                 }
 
-                Label {
+                // The headline is the sentence you quote when reporting
+                // something, so it is selectable. Wrapping, not elided:
+                // TextEdit has no elide, and a headline cut short is the
+                // half you cannot paste.
+                SelectableText {
                     text: root.subtitle
                     font.pixelSize: 12
-                    opacity: 0.6
                     anchors.verticalCenter: parent.verticalCenter
                     width: Math.max(0, headerRow.width - x)
-                    elide: Text.ElideRight
+                    wrapMode: TextEdit.Wrap
                 }
             }
 

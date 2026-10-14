@@ -118,7 +118,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
-            Label {
+            SelectableText {
                 text: "System-wide"
                 font.bold: true
                 font.pixelSize: 14
@@ -143,16 +143,16 @@ warning above - if the system configuration does not import the prepared \
 file, it is inert.</li></ul>"
                 sections: [
                     { title: "The three steps", body: "\
-<table cellpadding='5'>\
-<tr><td><b>Prepared</b></td><td>Written to a file in your home. Instant, \
-needs no password, changes nothing.</td></tr>\
-<tr><td><b>Installed</b></td><td>Copied into the system configuration \
-directory. Needs root, so polkit asks - this is the only step that touches \
-anything outside your home.</td></tr>\
-<tr><td><b>In effect</b></td><td>The machine has been rebuilt and the app \
-can see the result. Confirmed by a value elsewhere in the app rather than \
-assumed.</td></tr>\
-</table><br>\
+<ul>\
+<li><b>Prepared</b> - written to a file in your home. Instant, needs no \
+password, changes nothing.</li>\
+<li><b>Installed</b> - copied into the system configuration directory. Needs \
+root, so polkit asks; the only step that touches anything outside your \
+home.</li>\
+<li><b>In effect</b> - the machine has been rebuilt and the result is \
+visible here. Confirmed by a value elsewhere in the app rather than \
+assumed.</li>\
+</ul><br>\
 They are separate because each can fail or be refused independently, and \
 because collapsing them would mean telling you something was done when it \
 was merely written down." },
@@ -189,13 +189,19 @@ project, and the system one covers everywhere else." }
                 ]
             }
             Item { Layout.fillWidth: true }
-            Label {
+            Rectangle {
                 visible: root.anyPrepared
-                text: "prepared — not installed"
-                font.pixelSize: 10
-                color: style.pendingText
-                padding: 3
-                background: Rectangle { color: style.pendingTint; radius: 3 }
+                implicitWidth: preparedBadge.implicitWidth + 8
+                implicitHeight: preparedBadge.implicitHeight + 6
+                radius: 3
+                color: style.pendingTint
+                SelectableText {
+                    id: preparedBadge
+                    anchors.centerIn: parent
+                    text: "prepared — not installed"
+                    font.pixelSize: 10
+                    color: style.pendingText
+                }
             }
         }
 
@@ -209,11 +215,11 @@ project, and the system one covers everywhere else." }
             radius: 4
             color: style.badTint
             border.color: style.badDot
-            Label {
+            SelectableText {
                 id: notImported
                 x: 8; y: 6
                 width: parent.width - 16
-                wrapMode: Text.WordWrap
+                wrapMode: TextEdit.Wrap
                 font.pixelSize: 11
                 color: style.badText
                 text: "The system configuration does not import "
@@ -224,21 +230,23 @@ project, and the system one covers everywhere else." }
             }
         }
 
-        Label {
+        // The path is there to be opened, so it has to be copyable -
+        // and wrapping rather than elided, since the middle of a store path
+        // is not the part you can guess.
+        SelectableText {
             Layout.fillWidth: true
             text: root.stagedPath === "" ? "" : "prepared in " + root.stagedPath
             font.pixelSize: 10
-            opacity: 0.55
-            elide: Text.ElideMiddle
+            wrapMode: TextEdit.Wrap
         }
 
-        Label {
+        SelectableText {
             Layout.fillWidth: true
             visible: root.lastError !== ""
             text: "✗ " + root.lastError
             color: style.badText
             font.pixelSize: 11
-            wrapMode: Text.WordWrap
+            wrapMode: TextEdit.Wrap
         }
 
         Repeater {
@@ -248,7 +256,7 @@ project, and the system one covers everywhere else." }
                 Layout.fillWidth: true
                 spacing: 8
 
-                Label {
+                SelectableText {
                     text: modelData.label
                     font.pixelSize: 12
                     Layout.preferredWidth: 250
@@ -275,10 +283,11 @@ project, and the system one covers everywhere else." }
                     ifWrong: modelData.if_wrong
                 }
 
-                Label {
+                SelectableText {
                     Layout.fillWidth: true
                     font.pixelSize: 10
-                    elide: Text.ElideRight
+                    wrapMode: TextEdit.NoWrap
+                    clip: true
                     text: {
                         if (root.busy[modelData.key] === true)
                             return "saving…"

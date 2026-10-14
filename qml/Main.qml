@@ -159,7 +159,7 @@ ApplicationWindow {
                 onClicked: root.subject = ""
             }
 
-            Label {
+            SelectableText {
                 text: "nixdash"
                 font.bold: true
                 font.pixelSize: 15
@@ -174,13 +174,31 @@ ApplicationWindow {
                 what: "Opens maximised, filling the screen below your panel. \
 <b>F11</b> switches to true fullscreen - no title bar, covering the panel - \
 and F11 or <b>Escape</b> comes back. Closing the window does not stop \
-monitoring."
+monitoring.<br><br>\
+Every value in this window is <b>selectable</b>, and selecting is already \
+copying: the dragged text goes onto the X11 primary selection, so a \
+<b>middle-click</b> pastes it straight into a terminal or an editor. \
+<tt>Ctrl+C</tt> puts it on the ordinary clipboard as well.<br><br>\
+A selection cannot cross from one value into the next, so for a whole panel \
+at once, point at it and press <b>Ctrl+Shift+C</b> - that copies the pane \
+under the pointer as tab-separated text."
                 why: "The engine is a separate background service that keeps \
 sampling whether or not a window is open, so closing this loses nothing but \
 the view. Maximised rather than fullscreen by default because fullscreen \
 hides the title bar, leaving no visible way to close or move the window - a \
 poor default for something you open to glance at."
                 ifWrong: "<ul>\
+<li><b>Ctrl+Shift+C did nothing.</b> The pointer was not over a panel. It \
+copies the pane you are pointing at, so there is no ambiguity about which \
+one you meant.</li>\
+<li><b>A dragged selection stops at the end of a value.</b> Expected. Each \
+reading is its own piece of text - which is what lets each one carry its own \
+info button - and Qt shares a selection only inside one piece. Ctrl+Shift+C \
+is the gesture for more than one.</li>\
+<li><b>Middle-click pastes something older.</b> The primary selection holds \
+whatever was selected <i>last</i>, anywhere on the desktop - selecting in \
+another window replaces it. In the browser build there is no primary \
+selection at all, so there use Ctrl+C or Ctrl+Shift+C.</li>\
 <li><b>F11 does something unexpected.</b> On this machine the key marked \
 PrtScrn reports itself as F11, so pressing it here toggles fullscreen rather \
 than taking a screenshot.</li>\
@@ -292,12 +310,13 @@ platform support</a>" }
                 Layout.leftMargin: 4
                 Layout.alignment: Qt.AlignVCenter
 
-                Label {
+                SelectableText {
                     text: root.tab === "monitor" ? "Monitor" : "Config"
                     font.pixelSize: 12
-                    // Dimmed only when it is a parent rather than the place
-                    // you are: on the overview this crumb IS the location.
-                    opacity: root.subject === "" ? 0.85 : 0.55
+                    // Not dimmed when it is a parent rather than the place
+                    // you are - see Style.qml. What is left to say so is the
+                    // ordinary breadcrumb cue: the last crumb is where you
+                    // are, and only the ones before it answer a click.
 
                     // No cursor change and no click on the overview, where
                     // this crumb leads nowhere. A pointing hand over a label
@@ -314,10 +333,9 @@ platform support</a>" }
                     text: "\u203a"
                     visible: root.subject !== ""
                     font.pixelSize: 12
-                    opacity: 0.45
                 }
 
-                Label {
+                SelectableText {
                     text: root.subjectNames[root.subject] || root.subject
                     visible: root.subject !== ""
                     font.pixelSize: 12
@@ -327,12 +345,18 @@ platform support</a>" }
 
             Item { Layout.fillWidth: true }
 
-            Label {
+            // Right-aligned and clipped rather than elided-from-the-left:
+            // TextEdit has no elide, and this keeps the tail visible exactly
+            // as ElideLeft did, minus the ellipsis. Ctrl+A reaches the part
+            // scrolled out of view, so the whole address or error can still
+            // be copied.
+            SelectableText {
                 text: root.engineUp ? dash.apiBase : root.lastError
                 color: root.engineUp ? palette.text : style.badDot
                 font.pixelSize: 11
-                opacity: root.engineUp ? 0.55 : 1.0
-                elide: Text.ElideLeft
+                horizontalAlignment: TextEdit.AlignRight
+                wrapMode: TextEdit.NoWrap
+                clip: true
                 Layout.maximumWidth: 260
             }
 
@@ -360,21 +384,17 @@ running the old build until restarted - see the Deploying tab.</li></ul>"
                     { title: "Sampling", body: "\
 Collection happens in the engine, not here. Each panel declares its own \
 interval, chosen against what the measurement costs:<br><br>\
-<table cellpadding='4'>\
-<tr><td><b>Panel</b></td><td><b>Every</b></td><td><b>Why that \
-interval</b></td></tr>\
-<tr><td>memory</td><td>2s</td><td>two cheap reads of <tt>/proc</tt>; the only \
-one that moves fast enough to watch</td></tr>\
-<tr><td>failed-units</td><td>15s</td><td>shells out to <tt>systemctl</tt> \
-twice, user and system scope</td></tr>\
-<tr><td>disk</td><td>30s</td><td>one <tt>statvfs</tt>, but it changes \
-slowly</td></tr>\
-<tr><td>generations</td><td>60s</td><td>a directory listing; changes only \
-when you rebuild</td></tr>\
-<tr><td>qt</td><td>60s</td><td>runs <tt>qmake -query</tt></td></tr>\
-<tr><td>rust</td><td>60s</td><td>runs <tt>rustc</tt> and \
-<tt>cargo</tt></td></tr>\
-</table><br>\
+<ul>\
+<li><b>memory</b>, every 2s - two cheap reads of <tt>/proc</tt>; the only one \
+that moves fast enough to watch</li>\
+<li><b>failed-units</b>, every 15s - shells out to <tt>systemctl</tt> twice, \
+user and system scope</li>\
+<li><b>disk</b>, every 30s - one <tt>statvfs</tt>, but it changes slowly</li>\
+<li><b>generations</b>, every 60s - a directory listing; changes only when \
+you rebuild</li>\
+<li><b>qt</b>, every 60s - runs <tt>qmake -query</tt></li>\
+<li><b>rust</b>, every 60s - runs <tt>rustc</tt> and <tt>cargo</tt></li>\
+</ul><br>\
 History is kept in memory only, and is lost when the engine restarts. \
 Nothing is written to disk and nothing leaves the machine.<br><br>\
 Severity and the one-line headline are also decided in the engine, not in \

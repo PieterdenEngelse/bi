@@ -47,39 +47,35 @@ Panel {
                 // smooth.
             }
 
-            Label {
+            SelectableText {
                 anchors.centerIn: parent
                 text: root.value ? root.usedPct.toFixed(1) + "% used" : "no data"
                 font.pixelSize: 12
             }
         }
 
-        StatRow {
-            label: "free"
-            value: root.value ? root.availGb.toFixed(1) + " GB of " + root.totalGb.toFixed(0) : "—"
+        StatBlock {
             panel: root
-            statKey: "avail_bytes"
-        }
-        StatRow {
-            label: "used"
-            value: root.value ? root.usedPct.toFixed(1) + "%" : "—"
-            panel: root
-            statKey: "used_fraction"
-        }
-        StatRow {
-            label: "filesystem"
-            value: root.value ? root.value.path : "—"
-            panel: root
-            statKey: "path"
+            rows: [
+                { label: "free",
+                  value: root.value ? root.availGb.toFixed(1) + " GB of "
+                                      + root.totalGb.toFixed(0) : "—",
+                  statKey: "avail_bytes" },
+                { label: "used",
+                  value: root.value ? root.usedPct.toFixed(1) + "%" : "—",
+                  statKey: "used_fraction" },
+                { label: "filesystem",
+                  value: root.value ? root.value.path : "—",
+                  statKey: "path" }
+            ]
         }
 
-        Label {
+        SelectableText {
             width: parent.width
             visible: root.usedPct > 85
             text: "Old generations are the usual cause. See Suggested actions."
             font.pixelSize: 11
-            opacity: 0.7
-            wrapMode: Text.WordWrap
+            wrapMode: TextEdit.Wrap
         }
     }
 }

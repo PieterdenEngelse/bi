@@ -12,16 +12,29 @@ Panel {
         return Math.floor(hours / 24) + "d ago"
     }
 
+    // The generation list itself, for the header's Copy.
+    extraText: {
+        var gens = root.value ? root.value.generations : []
+        var out = ""
+        for (var i = 0; i < gens.length; i++)
+            out += "#" + gens[i].number + "\t" + root.ago(gens[i].at)
+                 + (gens[i].current ? "\tcurrent" : "") + "\n"
+        return out
+    }
+
     Column {
         width: parent.width
         height: parent.height
         spacing: 4
 
-        StatRow {
-            label: "reboot pending"
-            value: root.value ? (root.value.reboot_needed ? "yes" : "no") : "—"
+        StatBlock {
             panel: root
-            statKey: "reboot_needed"
+            rows: [
+                { label: "reboot pending",
+                  value: root.value ? (root.value.reboot_needed ? "yes" : "no")
+                                    : "—",
+                  statKey: "reboot_needed" }
+            ]
         }
 
         ListView {
@@ -35,23 +48,23 @@ Panel {
                 width: ListView.view.width
                 spacing: 8
 
-                Label {
+                // A generation number is what you type into a rollback, so
+                // it is selectable. The list is a Flickable: SelectableText
+                // keeps it from claiming the drag.
+                SelectableText {
                     width: 46
                     text: "#" + modelData.number
                     font.pixelSize: 12
                     font.bold: modelData.current
-                    opacity: modelData.current ? 1.0 : 0.6
                 }
-                Label {
+                SelectableText {
                     text: root.ago(modelData.at)
                     font.pixelSize: 12
-                    opacity: modelData.current ? 0.8 : 0.45
                 }
-                Label {
+                SelectableText {
                     visible: modelData.current
                     text: "· current"
                     font.pixelSize: 12
-                    opacity: 0.8
                 }
             }
         }

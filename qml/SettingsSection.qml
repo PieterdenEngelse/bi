@@ -135,7 +135,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
-            Label {
+            SelectableText {
                 text: "nixdash itself"
                 font.bold: true
                 font.pixelSize: 14
@@ -190,31 +190,39 @@ than leaving the working one running." }
                 ]
             }
             Item { Layout.fillWidth: true }
-            Label {
+            Rectangle {
                 visible: root.anyPending
-                text: "changes not applied"
-                font.pixelSize: 10
-                color: style.pendingText
-                padding: 3
-                background: Rectangle { color: style.pendingTint; radius: 3 }
+                implicitWidth: pendingBadge.implicitWidth + 8
+                implicitHeight: pendingBadge.implicitHeight + 6
+                radius: 3
+                color: style.pendingTint
+                SelectableText {
+                    id: pendingBadge
+                    anchors.centerIn: parent
+                    text: "changes not applied"
+                    font.pixelSize: 10
+                    color: style.pendingText
+                }
             }
         }
 
-        Label {
+        // The path is there to be opened, so it has to be copyable -
+        // and wrapping rather than elided, since the middle of a store path
+        // is not the part you can guess.
+        SelectableText {
             Layout.fillWidth: true
             text: root.filePath === "" ? "" : "written to " + root.filePath
             font.pixelSize: 10
-            opacity: 0.55
-            elide: Text.ElideMiddle
+            wrapMode: TextEdit.Wrap
         }
 
-        Label {
+        SelectableText {
             Layout.fillWidth: true
             visible: root.lastError !== ""
             text: "✗ " + root.lastError
             color: style.badText
             font.pixelSize: 11
-            wrapMode: Text.WordWrap
+            wrapMode: TextEdit.Wrap
         }
 
         Repeater {
@@ -224,7 +232,7 @@ than leaving the working one running." }
                 Layout.fillWidth: true
                 spacing: 8
 
-                Label {
+                SelectableText {
                     text: modelData.label
                     font.pixelSize: 12
                     Layout.preferredWidth: 190
@@ -257,7 +265,7 @@ than leaving the working one running." }
                 // mean busy: a disabled control reads as broken, and there is
                 // nothing to guard - each write sends an explicit value, so a
                 // second one simply lands on whatever you chose last.
-                Label {
+                SelectableText {
                     visible: root.busy[modelData.key] === true
                              || root.pending(modelData)
                     text: {
@@ -269,7 +277,8 @@ than leaving the working one running." }
                     }
                     font.pixelSize: 10
                     color: style.pendingText
-                    elide: Text.ElideRight
+                    wrapMode: TextEdit.NoWrap
+                    clip: true
                     Layout.fillWidth: true
                 }
                 Item {

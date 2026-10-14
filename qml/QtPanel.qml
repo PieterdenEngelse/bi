@@ -16,7 +16,9 @@ Panel {
 
     // Header + verdict + 3 rows + gap + 4 tool rows. Panel's 190 default
     // clipped the last two tools, which are the two that matter most.
-    implicitHeight: 235
+    // Content-driven: a wrapped prefix or target spec makes the block taller
+    // than a fixed height can allow for.
+    contentHeight: col.implicitHeight
 
     readonly property bool present: value && value.version
     readonly property bool complete: value ? value.prefix_complete : false
@@ -39,11 +41,13 @@ Panel {
     }
 
     Column {
+        id: col
         anchors.fill: parent
         spacing: 5
 
-        // The verdict, not the version. It is what the panel is for.
-        Label {
+        // The verdict, not the version. It is what the panel is for - and
+        // what you would quote, so it is selectable.
+        SelectableText {
             width: parent.width
             text: root.verdict
             font.pixelSize: 13
@@ -51,44 +55,43 @@ Panel {
             color: !root.present ? palette.text
                  : root.complete ? style.okText
                  : style.badText
-            opacity: root.present ? 1.0 : 0.55
-            wrapMode: Text.WordWrap
+            wrapMode: TextEdit.Wrap
         }
 
-        StatRow {
-            label: "version"
-            value: root.value && root.value.version ? root.value.version : "—"
+        // Readings and the four host tools in one block, so a drag takes
+        // the lot. Two-of-four present is the classic split-prefix signature
+        // and is worth seeing at a glance, which is why each tool keeps its
+        // own line and its own info button.
+        StatBlock {
             panel: root
-            statKey: "version"
-        }
-        StatRow {
-            label: "from"
-            value: root.value ? root.value.source : "—"
-            panel: root
-            statKey: "source"
-        }
-        StatRow {
-            label: "target"
-            value: root.value && root.value.target_spec ? root.value.target_spec : "—"
-            panel: root
-            statKey: "target_spec"
-        }
-
-        Item { width: 1; height: 3 }
-
-        // The four host tools, individually. Two-of-four is the classic
-        // split-prefix signature and is worth seeing at a glance.
-        Repeater {
-            model: ["moc", "rcc", "qmltyperegistrar", "qmlcachegen"]
-
-            StatRow {
-                label: modelData
-                value: root.present ? (root.has(modelData) ? "✓ present" : "✗ missing")
-                                    : "—"
-                valueColor: !root.present ? palette.text
-                          : root.has(modelData) ? style.okText : style.badText
-                panel: root
-                statKey: root.has(modelData) ? "tools_found" : "tools_missing"
+            rows: {
+                var out = [
+                    { label: "version",
+                      value: root.value && root.value.version
+                             ? root.value.version : "—",
+                      statKey: "version" },
+                    { label: "from",
+                      value: root.value ? root.value.source : "—",
+                      statKey: "source" },
+                    { label: "target",
+                      value: root.value && root.value.target_spec
+                             ? root.value.target_spec : "—",
+                      statKey: "target_spec" }
+                ]
+                var tools = ["moc", "rcc", "qmltyperegistrar", "qmlcachegen"]
+                for (var i = 0; i < tools.length; i++)
+                    out.push({
+                        label: tools[i],
+                        value: root.present
+                               ? (root.has(tools[i]) ? "✓ present" : "✗ missing")
+                               : "—",
+                        color: !root.present ? palette.text
+                               : root.has(tools[i]) ? style.okText
+                                                    : style.badText,
+                        statKey: root.has(tools[i]) ? "tools_found"
+                                                    : "tools_missing"
+                    })
+                return out
             }
         }
     }

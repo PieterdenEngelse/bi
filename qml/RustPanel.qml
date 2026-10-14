@@ -13,7 +13,9 @@ Panel {
     Style { id: style }
 
     // Header + verdict + 2 rows + gap + 3 target rows + the hint line.
-    implicitHeight: 225
+    // Content-driven: a wrapped toolchain path makes the block taller than
+    // a fixed height can allow for.
+    contentHeight: col.implicitHeight
 
     readonly property bool present: value && value.rustc
     readonly property string path: value && value.rustc_path ? value.rustc_path : ""
@@ -31,10 +33,11 @@ Panel {
     readonly property bool hasLld: value ? value.lld_available : false
 
     Column {
+        id: col
         anchors.fill: parent
         spacing: 5
 
-        Label {
+        SelectableText {
             width: parent.width
             text: !root.present ? "No Rust on PATH"
                 : root.hasEm ? "Can build Qt for WebAssembly"
@@ -42,61 +45,54 @@ Panel {
             font.pixelSize: 13
             font.bold: true
             color: !root.present ? palette.text : root.hasEm ? style.okText : style.warnText
-            opacity: root.present ? 1.0 : 0.55
-            wrapMode: Text.WordWrap
+            wrapMode: TextEdit.Wrap
         }
 
-        StatRow {
-            label: "rustc"
-            value: root.value && root.value.rustc
-                   ? root.value.rustc.split(" ").slice(0, 2).join(" ") : "—"
+        // One block, so a drag takes the whole toolchain picture rather
+        // than one line of it. The blank spacer row that used to separate
+        // the version from the targets is gone with the per-row items; the
+        // labels carry that distinction on their own.
+        StatBlock {
             panel: root
-            statKey: "rustc"
-        }
-        StatRow {
-            label: "toolchain"
-            value: root.provenance
-            panel: root
-            statKey: "rustc_path"
-        }
-
-        Item { width: 1; height: 3 }
-
-        StatRow {
-            label: "wasm32-unknown"
-            value: !root.present ? "—" : root.hasWasm ? "✓ installed" : "✗ absent"
-            valueColor: !root.present ? palette.text
-                      : root.hasWasm ? style.okText : style.warnText
-            panel: root
-            statKey: "has_wasm32_unknown"
-        }
-        StatRow {
-            label: "wasm32-emscripten"
-            value: !root.present ? "—" : root.hasEm ? "✓ installed" : "✗ absent"
-            valueColor: !root.present ? palette.text
-                      : root.hasEm ? style.okText : style.warnText
-            panel: root
-            statKey: "has_wasm32_emscripten"
-        }
-        StatRow {
-            label: "lld"
-            value: !root.present ? "—" : root.hasLld ? "✓ present" : "✗ absent"
-            // Only actually a problem alongside wasm32-unknown-unknown, which
-            // is the target that links with it.
-            valueColor: !root.present ? palette.text
-                      : root.hasLld ? style.okText
-                      : root.hasWasm ? style.badText : palette.text
-            panel: root
-            statKey: "lld_available"
+            rows: [
+                { label: "rustc",
+                  value: root.value && root.value.rustc
+                         ? root.value.rustc.split(" ").slice(0, 2).join(" ")
+                         : "—",
+                  statKey: "rustc" },
+                { label: "toolchain", value: root.provenance,
+                  statKey: "rustc_path" },
+                { label: "wasm32-unknown",
+                  value: !root.present ? "—"
+                         : root.hasWasm ? "✓ installed" : "✗ absent",
+                  color: !root.present ? palette.text
+                         : root.hasWasm ? style.okText : style.warnText,
+                  statKey: "has_wasm32_unknown" },
+                { label: "wasm32-emscripten",
+                  value: !root.present ? "—"
+                         : root.hasEm ? "✓ installed" : "✗ absent",
+                  color: !root.present ? palette.text
+                         : root.hasEm ? style.okText : style.warnText,
+                  statKey: "has_wasm32_emscripten" },
+                // lld is only actually a problem alongside
+                // wasm32-unknown-unknown, which is the target that links
+                // with it.
+                { label: "lld",
+                  value: !root.present ? "—"
+                         : root.hasLld ? "✓ present" : "✗ absent",
+                  color: !root.present ? palette.text
+                         : root.hasLld ? style.okText
+                         : root.hasWasm ? style.badText : palette.text,
+                  statKey: "lld_available" }
+            ]
         }
 
-        Label {
+        SelectableText {
             width: parent.width
             visible: root.present && !root.hasEm
             text: "Add a fenix toolchain to the dev shell for the emscripten target."
             font.pixelSize: 10
-            opacity: 0.6
-            wrapMode: Text.WordWrap
+            wrapMode: TextEdit.Wrap
         }
     }
 }

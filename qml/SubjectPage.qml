@@ -48,7 +48,7 @@ Item {
                 width: parent.width
                 spacing: 12
 
-                Label {
+                SelectableText {
                     text: root.titles[root.subject] || root.subject
                     font.bold: true
                     font.pixelSize: 18

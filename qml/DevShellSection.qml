@@ -109,7 +109,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
-            Label {
+            SelectableText {
                 text: "Development shell"
                 font.bold: true
                 font.pixelSize: 14
@@ -148,12 +148,11 @@ development shell is built when you enter it; nothing reaches back into one \
 that is already running. Showing only the switch would mean claiming a \
 change that has not happened yet, which is the thing this page exists to \
 avoid.<br><br>\
-<table cellpadding='4'>\
-<tr><td><b>lld</b></td><td>confirmed by the Rust panel's <tt>lld \
-available</tt></td></tr>\
-<tr><td><b>rust-src</b></td><td>confirmed by the Rust panel's standard \
-library sources</td></tr>\
-</table>" },
+<ul>\
+<li><b>lld</b> - confirmed by the Rust panel's <tt>lld available</tt></li>\
+<li><b>rust-src</b> - confirmed by the Rust panel's standard library \
+sources</li>\
+</ul>" },
                     { title: "Why only these two", body: "\
 Anything offered here has to be checkable afterwards. Both of these have a \
 value elsewhere in the app that flips once the package arrives, so \"did \
@@ -169,31 +168,39 @@ Suggested actions instead." }
                 ]
             }
             Item { Layout.fillWidth: true }
-            Label {
+            Rectangle {
                 visible: root.anyWaiting
-                text: "re-enter the shell"
-                font.pixelSize: 10
-                color: style.pendingText
-                padding: 3
-                background: Rectangle { color: style.pendingTint; radius: 3 }
+                implicitWidth: waitingBadge.implicitWidth + 8
+                implicitHeight: waitingBadge.implicitHeight + 6
+                radius: 3
+                color: style.pendingTint
+                SelectableText {
+                    id: waitingBadge
+                    anchors.centerIn: parent
+                    text: "re-enter the shell"
+                    font.pixelSize: 10
+                    color: style.pendingText
+                }
             }
         }
 
-        Label {
+        // The path is there to be opened, so it has to be copyable -
+        // and wrapping rather than elided, since the middle of a store path
+        // is not the part you can guess.
+        SelectableText {
             Layout.fillWidth: true
             text: root.filePath === "" ? "" : "written to " + root.filePath
             font.pixelSize: 10
-            opacity: 0.55
-            elide: Text.ElideMiddle
+            wrapMode: TextEdit.Wrap
         }
 
-        Label {
+        SelectableText {
             Layout.fillWidth: true
             visible: root.lastError !== ""
             text: "✗ " + root.lastError
             color: style.badText
             font.pixelSize: 11
-            wrapMode: Text.WordWrap
+            wrapMode: TextEdit.Wrap
         }
 
         Repeater {
@@ -203,7 +210,7 @@ Suggested actions instead." }
                 Layout.fillWidth: true
                 spacing: 8
 
-                Label {
+                SelectableText {
                     text: modelData.label
                     font.pixelSize: 12
                     Layout.preferredWidth: 250
@@ -235,7 +242,7 @@ Suggested actions instead." }
                 // The honest part: what the switch says, versus what is
                 // actually in the shell. Also where "saving" is said, in
                 // words, rather than by grey-ing the control out.
-                Label {
+                SelectableText {
                     Layout.fillWidth: true
                     font.pixelSize: 10
                     text: {
@@ -248,7 +255,8 @@ Suggested actions instead." }
                         return ""
                     }
                     color: modelData.live === true ? style.okText : style.pendingText
-                    elide: Text.ElideRight
+                    wrapMode: TextEdit.NoWrap
+                    clip: true
                 }
             }
         }

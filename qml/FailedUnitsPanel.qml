@@ -10,25 +10,36 @@ Panel {
     readonly property var unavailable: value && value.unavailable_scopes
                                        ? value.unavailable_scopes : []
 
+    // So the header's Copy hands back the units themselves, not just the
+    // "3 failed" headline. Tab-separated, like every other copy here.
+    extraText: {
+        var units = root.value ? root.value.units : []
+        var out = ""
+        for (var i = 0; i < units.length; i++)
+            out += units[i].unit + "\t" + units[i].scope + "\t"
+                 + units[i].description + "\n"
+        return out
+    }
+
     Column {
         width: parent.width
         height: parent.height
         spacing: 4
 
-        StatRow {
-            label: "failed"
-            value: root.value ? String(root.count) : "—"
+        // "Nothing failed" and "could not look" must never render the same,
+        // so the blind scopes get their own row rather than being folded
+        // into the count.
+        StatBlock {
             panel: root
-            statKey: "count"
-        }
-        StatRow {
-            // "Nothing failed" and "could not look" must never render the
-            // same, so the blind scopes get their own row rather than being
-            // folded into the count.
-            label: "scopes unreadable"
-            value: root.unavailable.length === 0 ? "none" : root.unavailable.join(", ")
-            panel: root
-            statKey: "unavailable_scopes"
+            rows: [
+                { label: "failed",
+                  value: root.value ? String(root.count) : "—",
+                  statKey: "count" },
+                { label: "scopes unreadable",
+                  value: root.unavailable.length === 0
+                         ? "none" : root.unavailable.join(", "),
+                  statKey: "unavailable_scopes" }
+            ]
         }
 
         ListView {
@@ -40,18 +51,21 @@ Panel {
 
             delegate: Column {
                 width: ListView.view.width
-                Label {
+                // The unit name goes straight into a systemctl command, so
+                // it is selectable and wraps rather than being cut off. The
+                // list is a Flickable: SelectableText stops it claiming the
+                // drag, so selecting here does not scroll the list instead.
+                SelectableText {
                     text: modelData.unit + "  (" + modelData.scope + ")"
                     font.pixelSize: 12
                     color: style.badDot
-                    elide: Text.ElideRight
+                    wrapMode: TextEdit.Wrap
                     width: parent.width
                 }
-                Label {
+                SelectableText {
                     text: modelData.description
                     font.pixelSize: 10
-                    opacity: 0.65
-                    elide: Text.ElideRight
+                    wrapMode: TextEdit.Wrap
                     width: parent.width
                 }
             }
@@ -61,6 +75,8 @@ Panel {
                 visible: root.value && root.count === 0 && root.unavailable.length === 0
                 text: "✓"
                 font.pixelSize: 26
+                // Kept faint where body text no longer is: this is a
+                // watermark behind an empty list, not something to read.
                 opacity: 0.25
             }
         }

@@ -20,11 +20,33 @@ TextEdit {
 
     readOnly: true
     selectByMouse: true
+    // Selecting is already copying on this desktop: Qt puts the dragged text
+    // on the X11 primary selection, so a middle-click pastes it without
+    // Ctrl+C. Verified against the running window - the disk panel's "free"
+    // row turned up in PRIMARY after a drag, with the clipboard still empty.
+    // Nothing here implements it, and nothing should: writing selections to
+    // the ordinary clipboard instead would wipe whatever you had copied every
+    // time you dragged across a value to read it.
+    // TextEdit defaults its colour to BLACK, not to the palette - a Label
+    // converted to one without setting `color` goes invisible on this dark
+    // scheme. Default to the palette and let call sites override.
+    color: palette.text
+
+    /// Escapes engine-supplied text for use inside a RichText body. Values
+    /// land inside markup, so they are escaped rather than trusted: a target
+    /// list containing `<` would otherwise disappear into a tag.
+    function esc(s) {
+        return String(s).replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    }
 
     /// The nearest enclosing Flickable, or null when there is none above us.
     /// Duck-typed rather than matched on type: ScrollView scrolls with an
-    /// internal Flickable, and the parent chain runs through its content item.
-    property Item scroller: null
+    /// internal Flickable, and the parent chain runs through its content
+    /// item. qmllint flags the two probes below as members missing from
+    /// Item, which is the point of a probe: QML resolves them at runtime,
+    /// and a Flickable answers while a plain Item does not.
+    property var scroller: null
 
     Component.onCompleted: {
         for (var p = root.parent; p; p = p.parent) {

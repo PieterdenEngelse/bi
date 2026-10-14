@@ -71,29 +71,23 @@ Panel {
             }
         }
 
-        StatRow {
-            label: "available"
-            value: root.value ? root.availableGb.toFixed(1) + " GB of " + root.totalGb.toFixed(1) : "—"
+        StatBlock {
             panel: root
-            statKey: "available_kb"
-        }
-        StatRow {
-            label: "used"
-            value: root.value ? root.usedPct.toFixed(0) + "%" : "—"
-            panel: root
-            statKey: "used_fraction"
-        }
-        StatRow {
-            label: "swap free"
-            value: root.value ? root.swapFreeGb.toFixed(1) + " GB" : "—"
-            panel: root
-            statKey: "swap_free_kb"
-        }
-        StatRow {
-            label: "stall 60s"
-            value: root.value ? root.pressure60.toFixed(2) + "%" : "—"
-            panel: root
-            statKey: "pressure_some_avg60"
+            rows: [
+                { label: "available",
+                  value: root.value ? root.availableGb.toFixed(1) + " GB of "
+                                      + root.totalGb.toFixed(1) : "—",
+                  statKey: "available_kb" },
+                { label: "used",
+                  value: root.value ? root.usedPct.toFixed(0) + "%" : "—",
+                  statKey: "used_fraction" },
+                { label: "swap free",
+                  value: root.value ? root.swapFreeGb.toFixed(1) + " GB" : "—",
+                  statKey: "swap_free_kb" },
+                { label: "stall 60s",
+                  value: root.value ? root.pressure60.toFixed(2) + "%" : "—",
+                  statKey: "pressure_some_avg60" }
+            ]
         }
     }
 }

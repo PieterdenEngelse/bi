@@ -55,6 +55,20 @@ Item {
 
     Style { id: style }
 
+    /// Prose bodies are rendered by a TextEdit so they can be selected and
+    /// copied - info panels are full of commands and paths, and reading one
+    /// off the screen by hand is not a feature. TextEdit has neither
+    /// `linkColor` nor `lineHeight` (checked against Qt 6.11's own type
+    /// info), so both move into the markup here: anchors get an inline
+    /// colour, and the body is wrapped in a div carrying the line spacing.
+    /// Qt ignores CSS it does not implement rather than erroring, so the
+    /// worst case is tighter lines, not a broken panel.
+    function proseHtml(body) {
+        return "<div style='line-height:130%'>"
+             + String(body).replace(/<a /g, "<a style='color:" + style.link + "' ")
+             + "</div>"
+    }
+
     implicitWidth: style.infoSize
     implicitHeight: style.infoSize
     visible: hasContent
@@ -123,16 +137,14 @@ Item {
         clip: true
         contentWidth: availableWidth
 
-        Label {
+        SelectableText {
             width: prose.availableWidth
             text: prose.body
             font.pixelSize: 12
-            wrapMode: Text.WordWrap
-            lineHeight: 1.3
+            wrapMode: TextEdit.Wrap
             // RichText rather than StyledText: StyledText has no lists, and
             // failure modes read far better as a list than as a paragraph.
-            textFormat: Text.RichText
-            linkColor: palette.link
+            textFormat: TextEdit.RichText
             // Opened in the user's browser rather than rendered in-app. The
             // wasm build has no business navigating its own canvas away, and
             // a dashboard is not a web browser.
@@ -178,12 +190,12 @@ Item {
               : (root.what.length + root.why.length + root.ifWrong.length) > 700
                 ? 520 : 360
 
-            Label {
+            SelectableText {
                 Layout.fillWidth: true
                 text: root.title
                 font.bold: true
                 font.pixelSize: 15
-                wrapMode: Text.WordWrap
+                wrapMode: TextEdit.Wrap
             }
 
             // Tabs only when there is something to tab between. One tab is
@@ -226,20 +238,17 @@ Item {
                                 spacing: 3
                                 visible: modelData.body !== ""
 
-                                Label {
+                                SelectableText {
                                     text: modelData.heading
                                     font.pixelSize: 10
                                     font.bold: true
-                                    opacity: 0.55
                                 }
-                                Label {
+                                SelectableText {
                                     width: parent.width
-                                    text: modelData.body
+                                    text: root.proseHtml(modelData.body)
                                     font.pixelSize: 12
-                                    wrapMode: Text.WordWrap
-                                    lineHeight: 1.3
-                                    textFormat: Text.RichText
-                                    linkColor: palette.link
+                                    wrapMode: TextEdit.Wrap
+                                    textFormat: TextEdit.RichText
                                     onLinkActivated: function(url) {
                                         Qt.openUrlExternally(url)
                                     }
@@ -258,7 +267,7 @@ Item {
 
                 Repeater {
                     model: root.sections
-                    Prose { body: modelData.body }
+                    Prose { body: root.proseHtml(modelData.body) }
                 }
             }
 
