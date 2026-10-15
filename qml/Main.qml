@@ -15,6 +15,21 @@ ApplicationWindow {
     visible: true
     title: "nixdash"
 
+    /// Size for the header's chrome text: the two tabs, and the About link
+    /// beside them. Six pixels up from the inherited font rather than a
+    /// literal, so it keeps its distance if that font changes - the default
+    /// here is whatever Gtk/FontName says, "Sans 8" on this machine, which
+    /// is about 11px at 96dpi, putting this at roughly 17.
+    ///
+    /// It was +2 first and that was too small to notice, which is the whole
+    /// argument for the offset living in one named place.
+    ///
+    /// The guard is not decoration. `font.pixelSize` reads -1 when the font
+    /// it resolved was specified in POINTS, which is exactly how a
+    /// Gtk/FontName arrives - without it this would be a 1px header.
+    readonly property int chromeFont:
+        (root.font.pixelSize > 0 ? root.font.pixelSize : 11) + 6
+
     // Every colour in the app comes from here. Not a singleton: cxx-qt 0.10
     // cannot register one, so each component instantiates its own - see
     // Style.qml.
@@ -249,10 +264,12 @@ browser and contacts that site, like any other link." }
                 // and an index that does not change fires no signal.
                 TabButton {
                     text: "Monitor"; width: 90
+                    font.pixelSize: root.chromeFont
                     onClicked: { root.tab = "monitor"; root.subject = "" }
                 }
                 TabButton {
                     text: "Config"; width: 90
+                    font.pixelSize: root.chromeFont
                     onClicked: { root.tab = "config"; root.subject = "" }
                 }
             }
@@ -312,7 +329,7 @@ platform support</a>" }
 
                 SelectableText {
                     text: root.tab === "monitor" ? "Monitor" : "Config"
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                     // Not dimmed when it is a parent rather than the place
                     // you are - see Style.qml. What is left to say so is the
                     // ordinary breadcrumb cue: the last crumb is where you
@@ -332,13 +349,13 @@ platform support</a>" }
                 Label {
                     text: "\u203a"
                     visible: root.subject !== ""
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                 }
 
                 SelectableText {
                     text: root.subjectNames[root.subject] || root.subject
                     visible: root.subject !== ""
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                     font.bold: true
                 }
             }
@@ -353,7 +370,7 @@ platform support</a>" }
             SelectableText {
                 text: root.engineUp ? dash.apiBase : root.lastError
                 color: root.engineUp ? palette.text : style.badDot
-                font.pixelSize: 11
+                font.pixelSize: style.fontBody
                 horizontalAlignment: TextEdit.AlignRight
                 wrapMode: TextEdit.NoWrap
                 clip: true
@@ -419,6 +436,139 @@ are not drawn live.<br><br>\
 Until you do those, a changed service keeps running the <i>old</i> build and \
 everything here will look untouched." }
                 ]
+            }
+
+            // Which build this window is. Last in the row, so it sits in the
+            // top-right corner past the Refresh info button.
+            //
+            // A link rather than a fourth InfoButton: those explain the
+            // control they sit beside, and this explains the program. It is
+            // also the string you paste into a bug report, so the gesture is
+            // ClickOrSelectArea's - click opens About, drag selects the
+            // version - instead of a MouseArea that would swallow the drag.
+            Item {
+                Layout.alignment: Qt.AlignVCenter
+                Layout.rightMargin: 2
+                implicitWidth: buildText.implicitWidth
+                implicitHeight: buildText.implicitHeight
+
+                SelectableText {
+                    id: buildText
+                    text: "v" + dash.version + " \u00b7 " + dash.built
+                    color: buildArea.hovered ? style.linkHover : style.link
+                    font.pixelSize: root.chromeFont
+                }
+
+                ClickOrSelectArea {
+                    id: buildArea
+                    anchors.fill: parent
+                    textItem: buildText
+                    onActivated: about.open()
+                }
+            }
+        }
+    }
+
+    // About. The version link in the header opens this; nothing else does.
+    Popup {
+        id: about
+        // On the overlay, like InfoButton's panel, so the header cannot clip
+        // it.
+        parent: Overlay.overlay
+        x: Math.round((parent.width - width) / 2)
+        y: Math.round((parent.height - height) / 2)
+        width: Math.min(460, parent.width - 60)
+        modal: true
+        focus: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        padding: 16
+
+        contentItem: ColumnLayout {
+            spacing: 10
+
+            SelectableText {
+                Layout.fillWidth: true
+                text: "nixdash"
+                font.bold: true
+                font.pixelSize: 15
+            }
+
+            SelectableText {
+                Layout.fillWidth: true
+                text: "A local-first dashboard for one NixOS machine: a Rust \
+engine reads the system, this window renders it."
+                font.pixelSize: style.fontBody
+                wrapMode: TextEdit.Wrap
+            }
+
+            // Version and date describe THIS window, baked in at compile
+            // time - see ui/build_date.rs. The engine is a separate binary
+            // and can be a different build entirely, which is the usual
+            // reason a change does not show up; the address is here so the
+            // two can be told apart.
+            Grid {
+                columns: 2
+                columnSpacing: 12
+                rowSpacing: 4
+
+                SelectableText { text: "version";  font.pixelSize: style.fontBody }
+                SelectableText { text: dash.version; font.pixelSize: style.fontBody }
+                // Amsterdam, not UTC - the EU rule is hardcoded in
+                // ui/build_date.rs, which is the only zone this shows.
+                SelectableText { text: "built";    font.pixelSize: style.fontBody }
+                SelectableText {
+                    text: dash.built + "  (Amsterdam)"
+                    font.pixelSize: style.fontBody
+                }
+                SelectableText { text: "engine";   font.pixelSize: style.fontBody }
+                SelectableText {
+                    text: root.engineUp ? dash.apiBase
+                                        : dash.apiBase + "  (unreachable)"
+                    color: root.engineUp ? palette.text : style.badDot
+                    font.pixelSize: style.fontBody
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Item { Layout.fillWidth: true }
+
+                Button {
+                    text: "Close"
+                    onClicked: about.close()
+                }
+                // The dates are the point of this dialog, and a wrong one is
+                // the usual explanation for "my change is not in here".
+                InfoButton {
+                    title: "About this build"
+                    what: "Which build you are looking at. <b>version</b> is \
+the app's own version; <b>built</b> is the day this window's build was \
+produced, in Amsterdam time; <b>engine</b> is the address this window reads \
+from, marked <i>unreachable</i> when nothing answers there."
+                    why: "There is no other way to tell. A store path's \
+timestamp is pinned to the epoch by design, and when a process started says \
+when you opened the window - not when its binary was made. So <b>built</b> is \
+the only answer to \"is this the code I just wrote?\", which is the question \
+that costs an afternoon when two identical-looking windows are hours \
+apart.<br><br>\
+The background service shown as <b>engine</b> is a separate binary and can be \
+a different build entirely; its address is here so the two can be told apart \
+rather than assumed to match."
+                    ifWrong: "<ul>\
+<li><b>Older than your last build.</b> You are running the installed copy. \
+The menu entry and the panel launcher start whichever is newer - a local \
+<tt>cargo build</tt> only wins once it is newer than the generation \
+<tt>home-manager switch</tt> installed.</li>\
+<li><b>Today's date, but your change is missing.</b> This window's QML is \
+baked into the binary when it is built, so an edit only arrives with a \
+rebuild - and a brand-new QML file has to be listed in both UIs' build files \
+or it is simply not in the bundle.</li>\
+<li><b>engine marked unreachable.</b> Nothing is listening on that address: \
+the background service is stopped, or running on a different port than this \
+window was told about.</li></ul>"
+                }
             }
         }
     }

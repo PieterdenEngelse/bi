@@ -50,7 +50,7 @@ Panel {
         SelectableText {
             width: parent.width
             text: root.verdict
-            font.pixelSize: 13
+            font.pixelSize: style.fontBody
             font.bold: true
             color: !root.present ? palette.text
                  : root.complete ? style.okText

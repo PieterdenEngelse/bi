@@ -1,0 +1,82 @@
+import QtQuick
+
+// Click to act, drag to select - for a tile that is both a control and text
+// worth copying.
+//
+// Two separate handlers cannot do this. A TapHandler keeps only a passive
+// grab, so the moment the text under it takes the exclusive grab on press the
+// tap is cancelled: the tile either selected or acted, and in one build it
+// stopped acting altogether. This owns the press instead and decides from how
+// far the pointer moved - under the threshold a click, past it a selection fed
+// to the text item through positionAt() and moveCursorSelection().
+//
+// preventStealing is what keeps that drag from being reinterpreted as a page
+// scroll, the same job SelectableText does for text pressed directly.
+//
+// What it costs: double-click-to-select-a-word inside such a tile, because the
+// text no longer sees the press itself. Whatever uses this is the control, and
+// explains the gesture in its own info button - this file cannot know what the
+// click does.
+MouseArea {
+    id: root
+
+    /// The text whose selection this drives. A TextEdit-alike: it needs
+    /// positionAt(), moveCursorSelection(), cursorPosition and deselect().
+    /// Typed `var` so those lookups are not checked against plain Item.
+    property var textItem: null
+
+    /// Emitted for a press that never became a drag.
+    signal activated()
+
+    readonly property bool hovered: containsMouse
+
+    property real pressX: 0
+    property real pressY: 0
+    property bool dragging: false
+    /// Pixels of travel, |dx|+|dy|, before a press counts as a selection
+    /// rather than a click. Qt's own startDragDistance is about 10 and this
+    /// sum is stricter than its radius, so 6 lost clicks to ordinary hand
+    /// wobble - the release check below is the real safeguard.
+    readonly property int dragThreshold: 10
+
+    hoverEnabled: true
+    preventStealing: true
+    cursorShape: Qt.PointingHandCursor
+
+    function positionIn(mx, my) {
+        var p = mapToItem(root.textItem, mx, my)
+        return root.textItem.positionAt(p.x, p.y)
+    }
+
+    onPressed: (m) => {
+        root.pressX = m.x
+        root.pressY = m.y
+        root.dragging = false
+        if (!root.textItem)
+            return
+        root.textItem.forceActiveFocus()
+        root.textItem.cursorPosition = root.positionIn(m.x, m.y)
+        root.textItem.deselect()
+    }
+
+    onPositionChanged: (m) => {
+        if (!root.pressed || !root.textItem)
+            return
+        if (!root.dragging
+            && Math.abs(m.x - root.pressX) + Math.abs(m.y - root.pressY)
+               < root.dragThreshold)
+            return
+        root.dragging = true
+        root.textItem.moveCursorSelection(root.positionIn(m.x, m.y))
+    }
+
+    // Decided on release, not on movement: a drag that selected nothing was
+    // a click with a shaky hand, and swallowing it means a card that does not
+    // open for no visible reason.
+    onClicked: {
+        if (!root.dragging
+            || !root.textItem
+            || root.textItem.selectedText.length === 0)
+            root.activated()
+    }
+}

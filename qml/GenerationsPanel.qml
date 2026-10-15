@@ -4,6 +4,11 @@ import QtQuick.Controls
 Panel {
     id: root
 
+    // Panel has its own, but an id is scoped to the file that declares it -
+    // `style` inside Panel.qml is invisible here. Every other panel carries
+    // the same line for the same reason.
+    Style { id: style }
+
     function ago(ms) {
         var mins = Math.floor((Date.now() - ms) / 60000)
         if (mins < 60) return mins + "m ago"
@@ -54,17 +59,17 @@ Panel {
                 SelectableText {
                     width: 46
                     text: "#" + modelData.number
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                     font.bold: modelData.current
                 }
                 SelectableText {
                     text: root.ago(modelData.at)
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                 }
                 SelectableText {
                     visible: modelData.current
                     text: "· current"
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                 }
             }
         }

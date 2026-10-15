@@ -23,8 +23,9 @@ import QtQuick
 //
 // ---------------------------------------------------------------------------
 // The scheme is dark, deliberately and not by inheriting one. Text follows
-// the rule from the RERAG repo: #d1d5db for anything you need to read,
-// #9ca3af as the floor for secondary text, and never darker. Links are blue.
+// the rule from the RERAG repo, moved halfway to white: #e8eaed for anything
+// you need to read, #ced1d7 as the floor for secondary text, and never
+// darker. Links are blue.
 QtObject {
     // ---- surfaces ------------------------------------------------------
     readonly property color window:     "#1b1f24"   // page background
@@ -34,20 +35,34 @@ QtObject {
     readonly property color borderSoft: "#2f3741"
 
     // ---- text ----------------------------------------------------------
-    // Anything the reader needs: #d1d5db. Secondary: #9ca3af, and no darker -
+    // Anything the reader needs: #e8eaed. Secondary: #ced1d7, and no darker -
     // the contrast failure is invisible until someone actually reads it on a
     // dark display.
-    readonly property color text:       "#d1d5db"
-    readonly property color textMuted:  "#9ca3af"
-    readonly property color textStrong: "#f3f4f6"
+    //
+    // Each of these is its RERAG original moved HALF THE REMAINING DISTANCE
+    // to white, per channel: #d1d5db -> #e8eaed, #9ca3af -> #ced1d7,
+    // #f3f4f6 -> #f9fafa. That formula rather than a multiplier because the
+    // originals are already 66-90% of the way there, so "50% brighter" has
+    // no meaning that does not clip. It lifts body text from 10.2:1 to
+    // 12.5:1 on a panel, and secondary from 5.9:1 to 9.8:1 - the floor moved
+    // further than the ceiling, which is the point.
+    //
+    // The split is NEUTRAL versus HUED, not "text" versus "status". Every
+    // grey that carries text moves - including unknownText and
+    // shellBadgeText further down. The greens, ambers, reds and blues do
+    // not: they are already 8-10:1, and whitening a hue desaturates the one
+    // thing it is there to signal.
+    readonly property color text:       "#e8eaed"
+    readonly property color textMuted:  "#ced1d7"
+    readonly property color textStrong: "#f9fafa"
 
     // **Text is never dimmed with `opacity`.** Hierarchy comes from size,
     // weight and the colours above - not from alpha. Alpha was doing that job
-    // in 27 places and it is what put secondary text under the floor: 0.6 on
-    // #d1d5db over #22272e composites to about #8b9096, darker than the
-    // #9ca3af this file calls the limit, and the label column of every
-    // StatRow was sitting there. The floor is only a floor if nothing is
-    // allowed to multiply its way below it afterwards.
+    // in 27 places and it is what put secondary text under the floor: at the
+    // pre-brightening values, 0.6 on #d1d5db over #22272e composited to about
+    // #8b9096, darker than the #9ca3af that was then the limit, and the label
+    // column of every stat row was sitting there. The floor is only a floor
+    // if nothing is allowed to multiply its way below it afterwards.
     //
     // screen-scale.nix makes it worse than the numbers suggest: it downscales
     // a 120% framebuffer, so small text renders smaller than its pixelSize
@@ -57,6 +72,23 @@ QtObject {
     // Opacity on a *shape* is a different thing and still fine - the disk
     // bar's fill, the info button's hover, the ✓ watermark behind an empty
     // unit list. None of those are read.
+
+    // ---- type ----------------------------------------------------------
+    // **13px is the floor for text.** Not a preference: screen-scale.nix runs
+    // this desktop at 120% of the panel's native resolution - a 2304x1296
+    // framebuffer the GPU downsamples onto 1920x1080 - so every glyph lands
+    // at 1/1.2 of its nominal size. `fontBody` is 10.8 real pixels. An 11
+    // would have been 9.2 and a 10 would have been 8.3.
+    //
+    // This is where the rule lives. It was previously stated only in
+    // comments in StatBlock.qml and ConfigSection.qml, both of which said
+    // "see Style.qml" about a paragraph that did not exist here - and it was
+    // under-run in 54 places out of 72 before anyone looked.
+    //
+    // Sizes ABOVE the floor are still chosen per site: headings at 15, page
+    // titles at 18, and Main.qml's `chromeFont`, which is derived from the
+    // platform font rather than from this scale.
+    readonly property int fontBody: 13
 
     readonly property color link:       "#60a5fa"
     readonly property color linkHover:  "#93c5fd"
@@ -78,7 +110,9 @@ QtObject {
     readonly property color badTint:    "#3a1d1e"
 
     readonly property color unknownDot:  "#9ca3af"
-    readonly property color unknownText: "#9ca3af"
+    // Brightened with the other neutral text greys; the dot above is not,
+    // because a dot is a shape and is read by colour, not by reading it.
+    readonly property color unknownText: "#ced1d7"
     readonly property color unknownTint: "#272c33"
 
     // Written-but-not-yet-applied, used by all three writable sections. The
@@ -92,7 +126,7 @@ QtObject {
     readonly property color nixBadgeTint:     "#16293d"
     readonly property color nixBadgeText:     "#93c5fd"
     readonly property color shellBadgeTint:   "#2b313a"
-    readonly property color shellBadgeText:   "#c5ccd6"
+    readonly property color shellBadgeText:   "#e2e6ea"   // neutral: brightened
     readonly property color rootBadgeTint:    "#3a2a14"
     readonly property color rootBadgeText:    "#fcd34d"
 

@@ -132,7 +132,10 @@ Rectangle {
             text: root.rowsHtml()
             textFormat: TextEdit.RichText
             font.family: "monospace"
-            font.pixelSize: 11
+            // The floor, for the same reason the panels use it:
+            // screen-scale.nix downscales a 120% framebuffer. See
+            // `fontBody` in Style.qml, which is now where that rule lives.
+            font.pixelSize: style.fontBody
             color: style.text
             // Word boundaries first, mid-word only when a run has none -
             // which is every store path.

@@ -178,7 +178,7 @@ Suggested actions instead." }
                     id: waitingBadge
                     anchors.centerIn: parent
                     text: "re-enter the shell"
-                    font.pixelSize: 10
+                    font.pixelSize: style.fontBody
                     color: style.pendingText
                 }
             }
@@ -190,7 +190,7 @@ Suggested actions instead." }
         SelectableText {
             Layout.fillWidth: true
             text: root.filePath === "" ? "" : "written to " + root.filePath
-            font.pixelSize: 10
+            font.pixelSize: style.fontBody
             wrapMode: TextEdit.Wrap
         }
 
@@ -199,7 +199,7 @@ Suggested actions instead." }
             visible: root.lastError !== ""
             text: "✗ " + root.lastError
             color: style.badText
-            font.pixelSize: 11
+            font.pixelSize: style.fontBody
             wrapMode: TextEdit.Wrap
         }
 
@@ -212,7 +212,7 @@ Suggested actions instead." }
 
                 SelectableText {
                     text: modelData.label
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                     Layout.preferredWidth: 250
                 }
 
@@ -244,7 +244,7 @@ Suggested actions instead." }
                 // words, rather than by grey-ing the control out.
                 SelectableText {
                     Layout.fillWidth: true
-                    font.pixelSize: 10
+                    font.pixelSize: style.fontBody
                     text: {
                         if (root.busy[modelData.key] === true)
                             return "saving…"

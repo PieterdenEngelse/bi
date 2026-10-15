@@ -192,6 +192,21 @@ rebuilds the engine to a new store path.
 | `qml/`, `ui/` as well | close and reopen the window |
 | panel icon / menu entry | `xfce4-panel -r` |
 
+For UI work there is a cheaper loop than a switch, and the panel icon follows
+it:
+
+```bash
+nix develop --command bash -c 'cargo build -p nixdash-ui && ./target/debug/nixdash-ui'
+```
+
+The menu entry and the panel launcher run a wrapper that starts **whichever
+build is newer** — the local `target/debug/nixdash-ui` when its mtime beats the
+generation symlink, the installed binary otherwise (`services.nixdash.ui.devBuild`,
+null to always use the installed one). Store paths all share one epoch mtime,
+which is why the comparison is against the generation link rather than the
+store path. Without this the icon kept launching the last switched-in build
+while a fresh one sat in the tree, and the two windows are indistinguishable.
+
 `home.nix` sets `systemd.user.startServices = "suggest"`, so home-manager
 prints the restart rather than running it — restarting user services
 automatically takes xfconf down and kills the Xfce panel on this machine.

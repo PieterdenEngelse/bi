@@ -17,6 +17,8 @@ import QtQuick.Layouts
 Item {
     id: root
 
+    Style { id: style }
+
     property var panels: []
     property var actions: []
     property string apiBase: ""
@@ -65,7 +67,7 @@ Item {
             SelectableText {
                 width: parent.width
                 wrapMode: TextEdit.Wrap
-                font.pixelSize: 11
+                font.pixelSize: style.fontBody
                 text: "These values are read-only by design. Everything here is "
                     + "declared in a Nix file; nixdash shows what is in effect "
                     + "and where it comes from. Changes to Nix config are "

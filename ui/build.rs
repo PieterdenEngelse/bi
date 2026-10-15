@@ -1,6 +1,11 @@
 use cxx_qt_build::{CxxQtBuilder, QmlModule};
 
+// Shared with the other UI through a symlink; see the file itself.
+include!("build_date.rs");
+
 fn main() {
+    emit_build_date();
+
     CxxQtBuilder::new_qml_module(
         // `qml` is a SYMLINK to the repo-root ../qml, shared with the wasm UI.
         //
@@ -30,6 +35,7 @@ fn main() {
             "qml/StatBlock.qml",
             "qml/SelectableText.qml",
             "qml/Clipboard.qml",
+            "qml/ClickOrSelectArea.qml",
             "qml/QtPanel.qml",
             "qml/RustPanel.qml",
             "qml/Panel.qml",

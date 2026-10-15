@@ -60,7 +60,7 @@ Panel {
             width: parent.width
             text: root.summary ? "error: " + root.summary.error : ""
             color: style.warnDot
-            font.pixelSize: 11
+            font.pixelSize: style.fontBody
             wrapMode: TextEdit.Wrap
         }
     }

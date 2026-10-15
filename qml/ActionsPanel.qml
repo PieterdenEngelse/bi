@@ -114,7 +114,7 @@ Panel {
             SelectableText {
                 width: parent.width
                 wrapMode: TextEdit.Wrap
-                font.pixelSize: 11
+                font.pixelSize: style.fontBody
                 text: "This will execute, as written:"
             }
 
@@ -133,7 +133,7 @@ Panel {
                     width: parent.width - 14
                     text: root.argvLine(confirm.action ? confirm.action.run : null)
                     font.family: "monospace"
-                    font.pixelSize: 11
+                    font.pixelSize: style.fontBody
                     wrapMode: TextEdit.WrapAnywhere
                 }
             }
@@ -144,7 +144,7 @@ Panel {
                 visible: confirm.action
                          && confirm.action.command.indexOf("\n") >= 0
                 wrapMode: TextEdit.Wrap
-                font.pixelSize: 10
+                font.pixelSize: style.fontBody
                 text: "The block in the panel also lists an inspection or \
 dry-run step. Only the line above runs."
             }
@@ -153,7 +153,7 @@ dry-run step. Only the line above runs."
                 width: parent.width
                 visible: confirm.action && confirm.action.needs_root
                 wrapMode: TextEdit.Wrap
-                font.pixelSize: 11
+                font.pixelSize: style.fontBody
                 text: "Needs root. polkit will ask you to authenticate - \
 nixdash has no privilege of its own, so that prompt is what permits it."
             }
@@ -161,7 +161,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
             SelectableText {
                 width: parent.width
                 wrapMode: TextEdit.Wrap
-                font.pixelSize: 11
+                font.pixelSize: style.fontBody
                 text: confirm.action
                       ? "Effects:\n  · " + confirm.action.effects.join("\n  · ")
                       : ""
@@ -170,7 +170,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
             SelectableText {
                 width: parent.width
                 wrapMode: TextEdit.Wrap
-                font.pixelSize: 10
+                font.pixelSize: style.fontBody
                 text: confirm.action && confirm.action.info
                       ? confirm.action.info.if_wrong : ""
             }
@@ -270,7 +270,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                 id: titleText
                                 text: modelData.title
                                 font.bold: true
-                                font.pixelSize: 13
+                                font.pixelSize: style.fontBody
                                 color: palette.text
                                 anchors.verticalCenter: parent.verticalCenter
                             }
@@ -299,7 +299,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                     text: modelData.kind === "nix"
                                           ? "paste into your Nix config"
                                           : "run in a terminal"
-                                    font.pixelSize: 10
+                                    font.pixelSize: style.fontBody
                                     color: modelData.kind === "nix" ? style.nixBadgeText : style.shellBadgeText
                                 }
                             }
@@ -314,7 +314,7 @@ nixdash has no privilege of its own, so that prompt is what permits it."
                                     id: rootLbl
                                     anchors.centerIn: parent
                                     text: "needs root"
-                                    font.pixelSize: 10
+                                    font.pixelSize: style.fontBody
                                     color: style.rootBadgeText
                                 }
                             }
@@ -436,7 +436,7 @@ systemd.exec(5)</a>." }
                             id: whyText
                             width: parent.width
                             text: modelData.why
-                            font.pixelSize: 11
+                            font.pixelSize: style.fontBody
                             color: palette.text
                             wrapMode: TextEdit.Wrap
                         }
@@ -457,7 +457,7 @@ systemd.exec(5)</a>." }
                                 text: modelData.command
                                 wrapMode: TextEdit.Wrap
                                 font.family: "monospace"
-                                font.pixelSize: 11
+                                font.pixelSize: style.fontBody
                                 color: palette.text
                             }
                         }
@@ -660,7 +660,7 @@ generations that would be your rollback targets." }
                             SelectableText {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: modelData.effects.join("  ·  ")
-                                font.pixelSize: 10
+                                font.pixelSize: style.fontBody
                                 wrapMode: TextEdit.NoWrap
                                 clip: true
                                 width: Math.max(0, parent.width - 230)
@@ -692,7 +692,7 @@ generations that would be your rollback targets." }
                                       : ""
                                 color: parent.res && parent.res.ok ? style.okText : style.badText
                                 font.family: "monospace"
-                                font.pixelSize: 10
+                                font.pixelSize: style.fontBody
                                 wrapMode: TextEdit.Wrap
                             }
                         }
@@ -715,7 +715,7 @@ generations that would be your rollback targets." }
                     width: parent.width
                     text: "probe " + modelData.provider + " failed: " + modelData.error
                     color: style.warnDot
-                    font.pixelSize: 11
+                    font.pixelSize: style.fontBody
                     wrapMode: TextEdit.Wrap
                 }
             }

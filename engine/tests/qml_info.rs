@@ -34,6 +34,13 @@ const EXEMPT: &[(&str, &str)] = &[
          button here would be noise next to the five that are not.",
     ),
     (
+        "ClickOrSelectArea.qml:*",
+        "A mechanism rather than a control: it is the press owner a tile lends \
+         to its own click-or-select gesture, and it cannot know what the click \
+         does. Whatever uses it is the control, and carries the info button \
+         that explains the gesture - the subject cards do exactly that.",
+    ),
+    (
         "InfoButton.qml:*",
         "InfoButton IS the explanation mechanism. Its own trigger and its \
          panel's close button cannot explain themselves without recursion.",

@@ -42,7 +42,7 @@ Panel {
             text: !root.present ? "No Rust on PATH"
                 : root.hasEm ? "Can build Qt for WebAssembly"
                 : "Cannot build Qt for WebAssembly"
-            font.pixelSize: 13
+            font.pixelSize: style.fontBody
             font.bold: true
             color: !root.present ? palette.text : root.hasEm ? style.okText : style.warnText
             wrapMode: TextEdit.Wrap
@@ -91,7 +91,7 @@ Panel {
             width: parent.width
             visible: root.present && !root.hasEm
             text: "Add a fenix toolchain to the dev shell for the emscripten target."
-            font.pixelSize: 10
+            font.pixelSize: style.fontBody
             wrapMode: TextEdit.Wrap
         }
     }

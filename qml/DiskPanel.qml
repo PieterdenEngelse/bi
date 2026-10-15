@@ -50,7 +50,7 @@ Panel {
             SelectableText {
                 anchors.centerIn: parent
                 text: root.value ? root.usedPct.toFixed(1) + "% used" : "no data"
-                font.pixelSize: 12
+                font.pixelSize: style.fontBody
             }
         }
 
@@ -74,7 +74,7 @@ Panel {
             width: parent.width
             visible: root.usedPct > 85
             text: "Old generations are the usual cause. See Suggested actions."
-            font.pixelSize: 11
+            font.pixelSize: style.fontBody
             wrapMode: TextEdit.Wrap
         }
     }

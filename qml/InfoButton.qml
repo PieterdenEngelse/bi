@@ -55,6 +55,12 @@ Item {
 
     Style { id: style }
 
+    /// Body text in a panel, and the links inside it - which are four
+    /// pixels larger, so they stand out of a paragraph rather than being
+    /// found by colour alone.
+    readonly property int proseFont: style.fontBody
+    readonly property int linkFont: proseFont + 4
+
     /// Prose bodies are rendered by a TextEdit so they can be selected and
     /// copied - info panels are full of commands and paths, and reading one
     /// off the screen by hand is not a feature. TextEdit has neither
@@ -63,9 +69,17 @@ Item {
     /// colour, and the body is wrapped in a div carrying the line spacing.
     /// Qt ignores CSS it does not implement rather than erroring, so the
     /// worst case is tighter lines, not a broken panel.
+    ///
+    /// The link size rides along on that same anchor rewrite. It cannot be a
+    /// stylesheet: QTextDocument drops a <style> block inside the fragment
+    /// it is handed, and TextEdit has no `defaultStyleSheet` to set one
+    /// through. Rewriting at render time rather than in the forty-odd markup
+    /// strings keeps the number in one place.
     function proseHtml(body) {
         return "<div style='line-height:130%'>"
-             + String(body).replace(/<a /g, "<a style='color:" + style.link + "' ")
+             + String(body).replace(/<a /g,
+                   "<a style='color:" + style.link
+                 + ";font-size:" + root.linkFont + "px' ")
              + "</div>"
     }
 
@@ -134,13 +148,20 @@ Item {
     component Prose: ScrollView {
         id: prose
         property string body: ""
+        /// Passed in rather than read off the InfoButton around it. An
+        /// inline component does not share scope with the file it is
+        /// declared in, so neither `root.proseFont` nor `style.fontBody`
+        /// resolves here - and a failed lookup in a binding is silent, which
+        /// is the part that makes it worth a line of comment. The literal is
+        /// Style.qml's floor; the call site passes the real one.
+        property int bodyFont: 13
         clip: true
         contentWidth: availableWidth
 
         SelectableText {
             width: prose.availableWidth
             text: prose.body
-            font.pixelSize: 12
+            font.pixelSize: prose.bodyFont
             wrapMode: TextEdit.Wrap
             // RichText rather than StyledText: StyledText has no lists, and
             // failure modes read far better as a list than as a paragraph.
@@ -240,13 +261,13 @@ Item {
 
                                 SelectableText {
                                     text: modelData.heading
-                                    font.pixelSize: 10
+                                    font.pixelSize: style.fontBody
                                     font.bold: true
                                 }
                                 SelectableText {
                                     width: parent.width
                                     text: root.proseHtml(modelData.body)
-                                    font.pixelSize: 12
+                                    font.pixelSize: root.proseFont
                                     wrapMode: TextEdit.Wrap
                                     textFormat: TextEdit.RichText
                                     onLinkActivated: function(url) {
@@ -267,7 +288,10 @@ Item {
 
                 Repeater {
                     model: root.sections
-                    Prose { body: root.proseHtml(modelData.body) }
+                    Prose {
+                        body: root.proseHtml(modelData.body)
+                        bodyFont: root.proseFont
+                    }
                 }
             }
 

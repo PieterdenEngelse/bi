@@ -125,7 +125,7 @@ Item {
                         SelectableText {
                             Layout.fillWidth: true
                             text: modelData.why
-                            font.pixelSize: 13
+                            font.pixelSize: style.fontBody
                             color: style.badText
                             wrapMode: TextEdit.NoWrap
                             clip: true
@@ -144,18 +144,31 @@ Item {
                     color: hover.hovered ? palette.alternateBase : palette.base
                     border.color: palette.mid
 
-                    // Handlers, not a MouseArea: a TapHandler on its default
-                    // DragThreshold policy takes only a PASSIVE grab, so the
-                    // selectable text below still receives the moves that
-                    // extend a selection - and a drag past the threshold
-                    // cancels the tap, so selecting text does not also
-                    // navigate. A click still opens the subject.
-                    HoverHandler {
+                    // Click opens the subject, a drag selects the card's
+                    // text; see ClickOrSelectArea for why one press owner has
+                    // to decide both. The gesture is explained to the person
+                    // using it in the card's own info button.
+                    // Above the text, not below it: the card's name and
+                    // headline are a TextEdit now and would take the press
+                    // themselves, which is exactly how the card stopped
+                    // opening. The old MouseArea got away with being declared
+                    // first because Labels ignore presses.
+                    //
+                    // Being on top means anything it covers stops being
+                    // clickable, so it stops short of the card's own info
+                    // button - derived from the real widths rather than
+                    // guessed, so it cannot drift if the icon size changes.
+                    ClickOrSelectArea {
                         id: hover
-                        cursorShape: Qt.PointingHandCursor
-                    }
-                    TapHandler {
-                        onTapped: root.openSubject(modelData.key)
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        anchors.rightMargin: 16 + cardChevron.width + 14
+                                             + cardInfo.width + 14
+                        z: 1
+                        textItem: cardText
+                        onActivated: root.openSubject(modelData.key)
                     }
 
                     RowLayout {
@@ -187,7 +200,8 @@ Item {
                                 + "font-weight:bold'>"
                                 + cardText.esc(modelData.name)
                                 + "</span></div><div><span "
-                                + "style='font-size:12px; color:"
+                                + "style='font-size:" + style.fontBody
+                                + "px; color:"
                                 + style.textMuted + "'>"
                                 + cardText.esc(root.headlineOf(modelData.key))
                                 + "</span></div>"
@@ -198,16 +212,21 @@ Item {
                                 var n = root.actionsOf(modelData.key).length
                                 return n === 0 ? "—" : n + (n === 1 ? " action" : " actions")
                             }
-                            font.pixelSize: 12
+                            font.pixelSize: style.fontBody
                         }
 
                         // The dot's rule is not visible from the dot. Sits
                         // before the chevron so it does not read as part of
                         // the "open this subject" affordance.
                         InfoButton {
+                            id: cardInfo
                             Layout.alignment: Qt.AlignVCenter
                             title: modelData.name + " card"
-                            what: "One row per subject. The dot is that \
+                            what: "<b>Click the card</b> to open the subject; \
+<b>drag across its text</b> to select it, which does not open anything. The \
+two cannot be the same gesture, so the card decides by how far the pointer \
+moved.<br><br>\
+One row per subject. The dot is that \
 subject's <b>worst</b> panel - not an average, not a count. One bad panel \
 among four still shows red. The line beside it lists every panel's headline, \
 worst first, and the count on the right is how many actions that subject is \
@@ -259,7 +278,11 @@ down the list." }
                             ]
                         }
 
-                        Label { text: "›"; font.pixelSize: 20 }
+                        Label {
+                            id: cardChevron
+                            text: "›"
+                            font.pixelSize: 20
+                        }
                     }
                 }
             }
@@ -269,7 +292,7 @@ down the list." }
                 horizontalAlignment: TextEdit.AlignHCenter
                 topPadding: 10
                 text: root.panels.length === 0 ? "waiting for the engine…" : ""
-                font.pixelSize: 12
+                font.pixelSize: style.fontBody
             }
         }
     }

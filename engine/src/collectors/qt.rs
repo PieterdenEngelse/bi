@@ -65,17 +65,55 @@ fn find_qmake() -> Option<(&'static str, PathBuf)> {
             return Some(("QMAKE env var", p));
         }
     }
-    let path = std::env::var("PATH").ok()?;
-    for dir in path.split(':') {
+    if let Ok(path) = std::env::var("PATH") {
+        for dir in path.split(':') {
+            for name in ["qmake6", "qmake"] {
+                let p = Path::new(dir).join(name);
+                if p.is_file() {
+                    return Some(("PATH", p));
+                }
+            }
+        }
+    }
+    qmake_in_ui_closure()
+}
+
+/// Last resort: a qmake inside the prefix the installed UI links against.
+///
+/// Not a PATH lookup - see `qt_runtime` for why PATH is the wrong question on
+/// NixOS. The UI's own closure is a real prefix on this machine, and if it
+/// carries a qmake this panel can report a *measured* version and tool set
+/// instead of shrugging.
+///
+/// It exists because the shrug was dishonest. The headline used to read "no
+/// qmake on PATH - cannot tell whether a Qt build would work" while the panel
+/// beside it displayed a merged prefix whose qmake answers `-query` and whose
+/// libexec holds all four host tools. "Cannot tell" was an inference, and a
+/// false one.
+///
+/// It must stay LAST. What a build *in this environment* would use is QMAKE or
+/// PATH; reporting on a different qmake than the build uses would be worse
+/// than reporting nothing, which is why the source is named in the reading and
+/// the headline says where it came from.
+fn qmake_in_ui_closure() -> Option<(&'static str, PathBuf)> {
+    use crate::collectors::qt_runtime::{qt_store_paths, ui_candidates, unwrap_binary};
+
+    let app = ui_candidates().into_iter().find(|p| p.exists())?;
+    let bytes = std::fs::read(unwrap_binary(&app)).ok()?;
+    for prefix in qt_store_paths(&bytes) {
         for name in ["qmake6", "qmake"] {
-            let p = Path::new(dir).join(name);
+            let p = Path::new(&prefix).join("bin").join(name);
             if p.is_file() {
-                return Some(("PATH", p));
+                return Some((UI_CLOSURE, p));
             }
         }
     }
     None
 }
+
+/// Source label for the closure fallback. A constant because the headline
+/// has to recognise it, and a typo would silently change the claim.
+const UI_CLOSURE: &str = "the Qt this app runs against";
 
 impl Collector for QtCollector {
     fn meta(&self) -> PanelMeta {
@@ -90,7 +128,13 @@ impl Collector for QtCollector {
                 what: "The qmake a build would use, and whether the prefix it \
                        reports contains every host tool cxx-qt needs. This is \
                        about BUILDING Qt software - it says nothing about \
-                       whether Qt is installed or running.",
+                       whether Qt is installed or running.\n\n\
+                       Three places are searched, in the order that decides \
+                       what a build actually uses: the QMAKE variable, then \
+                       PATH, then - only to have something measured rather \
+                       than nothing - the Qt prefix this app's own window is \
+                       drawn with. A qmake found in that last place is \
+                       reported, never counted as a working build setup.",
                 why: "cxx-qt interrogates ONE qmake for headers, libraries and \
                       host tools. nixpkgs splits those across store paths - \
                       qmltyperegistrar and qmlcachegen ship in qtdeclarative, \
@@ -109,14 +153,23 @@ impl Collector for QtCollector {
                            missing tool rather than the real cause: use \
                            pkgs.qt6.env for a merged prefix, since a plain \
                            symlinkJoin is ignored - nixpkgs' qmake has its \
-                           prefix baked in.",
+                           prefix baked in.\n\n\
+                           When the headline names a version 'in this app's \
+                           own closure', nothing here points a build at it: \
+                           that qmake was found inside the store path this \
+                           app's Qt comes from. It is a real prefix and the \
+                           tool list beside it was measured from it - but to \
+                           build against it you still have to point a build \
+                           there, which is what the development shell's QMAKE \
+                           does.",
             },
             stats: vec![
                 StatInfo {
                     key: "source",
                     info: Info {
                         what: "Where the qmake was found: the QMAKE \
-                               environment variable, or PATH.",
+                               environment variable, PATH, or - last - the Qt \
+                               prefix this app itself runs against.",
                         why: "QMAKE wins if set, and that is what a build \
                               uses. Reporting on a different qmake than the \
                               build uses would be worse than reporting \
@@ -126,7 +179,11 @@ impl Collector for QtCollector {
                                    Installed Qt programs keep working, \
                                    including this one: they load their \
                                    libraries by RPATH from their own closure, \
-                                   not from PATH.",
+                                   not from PATH. If the source reads 'the Qt \
+                                   this app runs against', no build here would \
+                                   use that qmake either - it is reported \
+                                   because it is the one thing about a build \
+                                   prefix this machine can actually show you.",
                     },
                 },
                 StatInfo {
@@ -289,18 +346,42 @@ impl Collector for QtCollector {
         // yes, since the app asking it is itself a Qt program. Saying "no Qt
         // in this environment" while rendering through libQt6Qml was simply
         // false, and the kind of false that teaches someone the wrong model.
-        match (version, complete) {
-            (Some(ver), true) => (Status::Ok, format!("{ver}, prefix complete")),
-            (Some(ver), false) => {
+        // A qmake found in the app's own closure is NOT the one a build here
+        // would use, so it never makes this panel Ok. It does replace a shrug
+        // with two measurements: nothing on PATH, and a prefix on this machine
+        // that either is or is not complete. "Cannot tell whether a Qt build
+        // would work" was an inference, and the Qt runtime panel beside this
+        // one was already contradicting it.
+        let from_closure = v["source"].as_str() == Some(UI_CLOSURE);
+
+        match (version, complete, from_closure) {
+            (Some(ver), true, false) => (Status::Ok, format!("{ver}, prefix complete")),
+            (Some(ver), false, false) => {
                 let missing = v["tools_missing"].as_array().map_or(0, |a| a.len());
                 (
                     Status::Bad,
                     format!("{ver}, {missing} host tool(s) missing"),
                 )
             }
-            (None, _) => (
+            (Some(ver), true, true) => (
                 Status::Unknown,
-                "no qmake on PATH - cannot tell whether a Qt build would work".into(),
+                format!(
+                    "no qmake on PATH - {ver} with a complete prefix in this app's own closure"
+                ),
+            ),
+            (Some(ver), false, true) => {
+                let missing = v["tools_missing"].as_array().map_or(0, |a| a.len());
+                (
+                    Status::Unknown,
+                    format!(
+                        "no qmake on PATH - this app's own prefix is {ver}, \
+                         missing {missing} host tool(s)"
+                    ),
+                )
+            }
+            (None, _, _) => (
+                Status::Unknown,
+                "no qmake on PATH, and none in this app's own closure".into(),
             ),
         }
     }
@@ -318,6 +399,38 @@ mod tests {
         let v = QtCollector.sample().expect("absence is not an error");
         assert!(v["prefix_complete"].as_bool().is_some());
         assert!(v["tools_missing"].is_array());
+    }
+
+    #[test]
+    fn headline_states_measurements_not_inferences() {
+        // The headline used to read "no qmake on PATH - cannot tell whether a
+        // Qt build would work" while the runtime panel beside it displayed a
+        // merged prefix with all four host tools. Whatever this machine's
+        // state, the headline must describe what was looked at.
+        let v = QtCollector.sample().unwrap();
+        let (_, headline) = QtCollector.status(&v);
+        assert!(
+            !headline.contains("cannot tell"),
+            "headline {headline:?} shrugs instead of reporting a measurement"
+        );
+        if v["source"].as_str() == Some(UI_CLOSURE) {
+            assert!(
+                headline.contains("own closure") && headline.contains("no qmake on PATH"),
+                "a closure-sourced qmake must say both where it was found and \
+                 that PATH had none: {headline:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn closure_qmake_never_reads_as_a_working_build_setup() {
+        // Found-in-our-own-closure is a measurement, not a green light: a
+        // build here would use QMAKE or PATH, neither of which has one.
+        let v = QtCollector.sample().unwrap();
+        if v["source"].as_str() == Some(UI_CLOSURE) {
+            let (status, _) = QtCollector.status(&v);
+            assert_eq!(status, Status::Unknown);
+        }
     }
 
     #[test]

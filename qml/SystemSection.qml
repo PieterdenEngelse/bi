@@ -199,7 +199,7 @@ project, and the system one covers everywhere else." }
                     id: preparedBadge
                     anchors.centerIn: parent
                     text: "prepared — not installed"
-                    font.pixelSize: 10
+                    font.pixelSize: style.fontBody
                     color: style.pendingText
                 }
             }
@@ -220,7 +220,7 @@ project, and the system one covers everywhere else." }
                 x: 8; y: 6
                 width: parent.width - 16
                 wrapMode: TextEdit.Wrap
-                font.pixelSize: 11
+                font.pixelSize: style.fontBody
                 color: style.badText
                 text: "The system configuration does not import "
                       + root.installedPath + " yet, so anything prepared here "
@@ -236,7 +236,7 @@ project, and the system one covers everywhere else." }
         SelectableText {
             Layout.fillWidth: true
             text: root.stagedPath === "" ? "" : "prepared in " + root.stagedPath
-            font.pixelSize: 10
+            font.pixelSize: style.fontBody
             wrapMode: TextEdit.Wrap
         }
 
@@ -245,7 +245,7 @@ project, and the system one covers everywhere else." }
             visible: root.lastError !== ""
             text: "✗ " + root.lastError
             color: style.badText
-            font.pixelSize: 11
+            font.pixelSize: style.fontBody
             wrapMode: TextEdit.Wrap
         }
 
@@ -258,7 +258,7 @@ project, and the system one covers everywhere else." }
 
                 SelectableText {
                     text: modelData.label
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                     Layout.preferredWidth: 250
                 }
 
@@ -285,7 +285,7 @@ project, and the system one covers everywhere else." }
 
                 SelectableText {
                     Layout.fillWidth: true
-                    font.pixelSize: 10
+                    font.pixelSize: style.fontBody
                     wrapMode: TextEdit.NoWrap
                     clip: true
                     text: {

@@ -152,7 +152,7 @@ Rectangle {
                 // half you cannot paste.
                 SelectableText {
                     text: root.subtitle
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                     anchors.verticalCenter: parent.verticalCenter
                     width: Math.max(0, headerRow.width - x)
                     wrapMode: TextEdit.Wrap

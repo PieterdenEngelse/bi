@@ -69,6 +69,26 @@ Item {
                         Loader {
                             Layout.fillWidth: true
                             Layout.preferredHeight: item ? item.implicitHeight : 200
+                            // Every panel in a row takes the row's height, so
+                            // their top edges line up.
+                            //
+                            // Without this they do not: a Qt Quick Layout
+                            // CENTRES an item that cannot grow, rather than
+                            // aligning it to the top of its cell. On the Qt
+                            // page that put the two short panels about 60px
+                            // below the tall one beside them - read as
+                            // "the boards do not line up", which is exactly
+                            // what it was. Filling is better than
+                            // Layout.alignment: Qt.AlignTop here: that would
+                            // align the tops and leave the bottoms ragged,
+                            // where equal-height cards square off both edges.
+                            //
+                            // No risk of stretching the grid itself. Its own
+                            // height comes from the ColumnLayout above, which
+                            // is sized to implicitHeight, so there is never
+                            // spare vertical space for a row to absorb - this
+                            // only redistributes height WITHIN a row.
+                            Layout.fillHeight: true
 
                             property var summary: modelData
 

@@ -17,6 +17,19 @@ import QtQuick
 // Monospace, because the label column is padded rather than laid out: a
 // proportional font makes that padding line up to nothing. Same trade the
 // Config page's tiles already make.
+//
+// One reading per info button, so the LINE PITCH IS THE BUTTON SIZE. At the
+// text's natural 14px leading the 24px buttons overlapped into a chain of
+// circles down the right edge of every panel - they are positioned from the
+// document, so they can only be as far apart as the rows are.
+//
+// Style.qml's floor, not the 11px this started at: screen-scale.nix
+// downscales a 120% framebuffer, so 11px rendered smaller than 11px. That
+// rule now lives in Style.qml as `fontBody` rather than in this comment -
+// it was stated here and in ConfigSection.qml, both deferring to a
+// paragraph Style.qml did not actually have, and was under-run in 54 places
+// before anyone counted. These rows are the main thing a panel exists to be
+// read from.
 Item {
     id: root
 
@@ -98,7 +111,8 @@ Item {
         var h = ""
         for (var i = 0; i < root.lines.length; i++) {
             var l = root.lines[i]
-            h += "<div><span style='color:" + style.textMuted + "'>"
+            h += "<div style='line-height:" + style.infoSize + "px'>"
+               + "<span style='color:" + style.textMuted + "'>"
                + body.esc(l.label) + root.nbsp(l.pad)
                + "</span><span style='color:"
                + (root.rows[i].color ? root.rows[i].color : style.text) + "'>"
@@ -112,9 +126,29 @@ Item {
         width: Math.max(0, root.width - root.infoWidth)
         textFormat: TextEdit.RichText
         font.family: "monospace"
-        font.pixelSize: 11
+        font.pixelSize: style.fontBody
         wrapMode: TextEdit.Wrap
         text: root.rowsHtml()
+    }
+
+    // Selection driven by hand, not by the TextEdit's own mouse handling.
+    //
+    // Native selectByMouse works for a Config tile but not here, and three
+    // attempts at finding out why from the outside failed: the rows lay out
+    // correctly, nothing covers them, no binding errors, and the guard that
+    // stops a page's Flickable claiming the drag is in place and resolved at
+    // press time. Rather than a fourth theory, this owns the press -
+    // preventStealing means nothing can take it - and drives the same
+    // selection the TextEdit would have.
+    //
+    // Two costs, both real: double-click-to-select-a-word in a panel, and the
+    // X11 primary selection, which Qt fills from its own mouse handling and
+    // not from a programmatic selection - so middle-click paste works from
+    // Config tiles but not from these readings. Ctrl+C and Ctrl+Shift+C do.
+    ClickOrSelectArea {
+        anchors.fill: body
+        textItem: body
+        cursorShape: Qt.IBeamCursor
     }
 
     Repeater {

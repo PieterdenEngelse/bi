@@ -48,18 +48,41 @@ TextEdit {
     /// and a Flickable answers while a plain Item does not.
     property var scroller: null
 
-    Component.onCompleted: {
+    function findScroller() {
         for (var p = root.parent; p; p = p.parent) {
-            if (p.contentY !== undefined && p.flicking !== undefined) {
-                root.scroller = p
-                break
-            }
+            if (p.contentY !== undefined && p.flicking !== undefined)
+                return p
         }
+        return null
     }
 
-    // A passive grab only - PointHandler never takes the exclusive grab, so
-    // the TextEdit still receives the moves that extend a selection.
-    PointHandler { id: press }
+    // Resolved at PRESS time, not at completion.
+    //
+    // Component.onCompleted is too early for a text inside a nested
+    // component: when this item completes, its own parents exist but the
+    // component that contains it has not been parented yet, so the walk
+    // reaches a null parent and gives up. `scroller` then stayed null
+    // forever, the guard below never engaged, and a downward drag across
+    // rows was free to be reinterpreted as a scroll - selecting one value
+    // worked, selecting several never did. By the time a press arrives the
+    // tree is fully parented, so the same walk succeeds.
+    PointHandler {
+        id: press
+        // NO margin here, however tempting. `margin: 2000` was added to keep
+        // this handler active while a drag wandered outside the item, and it
+        // broke mouse input across the whole window: margin widens the area
+        // in which the handler claims a point, so every selectable text in
+        // the scene claimed every press within 2000px of itself - including
+        // texts that render nothing, like the hidden "waiting for the engine"
+        // line. Whichever was frontmost in paint order swallowed the press,
+        // so subject cards stopped opening and panel rows stopped selecting.
+        // Found with an offscreen qmltestrunner harness after three wrong
+        // theories; the margin is not worth a fourth.
+        onActiveChanged: {
+            if (press.active && root.scroller === null)
+                root.scroller = root.findScroller()
+        }
+    }
 
     // Declarative, so the scroller's own `interactive` binding or value comes
     // back on release rather than being overwritten with a guessed `true`.

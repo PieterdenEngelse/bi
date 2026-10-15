@@ -24,6 +24,35 @@
 let
   cfg = config.services.nixdash;
 
+  # The menu entry and the panel launcher run THIS, not the installed binary
+  # directly, so the icon starts whichever build is newer.
+  #
+  # Without it the icon runs the build from the last `home-manager switch`
+  # while a freshly compiled one sits in the tree, the two windows look
+  # identical, and half an afternoon goes into testing a three-hour-old
+  # binary. Store paths all carry the same epoch mtime, so "newer" compares
+  # the local binary against the generation symlink - the moment the installed
+  # one was switched in.
+  launcher = pkgs.writeShellScript "nixdash-ui-launch" ''
+    set -u
+
+    installed=${lib.getExe cfg.ui.package}
+    dev=${lib.escapeShellArg (toString cfg.ui.devBuild)}
+    gen="''${XDG_STATE_HOME:-$HOME/.local/state}/nix/profiles/home-manager"
+
+    if [ -n "$dev" ] && [ -x "$dev" ]        && [ "$(stat -c %Y "$dev" 2>/dev/null || echo 0)"             -gt "$(stat -c %Y "$gen" 2>/dev/null || echo 0)" ]; then
+      # A cargo build is not wrapped, so it needs the paths wrapQtAppsHook
+      # would have given it. Without these Qt finds no platform plugin and
+      # the window never appears.
+      export QT_PLUGIN_PATH="${cfg.ui.package.qtEnv}/${pkgs.qt6.qtbase.qtPluginPrefix}"
+      export QML2_IMPORT_PATH="${cfg.ui.package.qtEnv}/${pkgs.qt6.qtbase.qtQmlPrefix}"
+      export NIXPKGS_QT6_QML_IMPORT_PATH="$QML2_IMPORT_PATH"
+      exec "$dev" "$@"
+    fi
+
+    exec "$installed" "$@"
+  '';
+
   # Built once and used twice: as the menu entry and as the autostart file.
   # Referencing the generated entry by its runtime path instead would not
   # exist at evaluation time.
@@ -33,7 +62,7 @@ let
     comment = "NixOS config and monitoring";
     # The UI reads NIXDASH_PORT to find the engine, so the entry has to carry
     # whatever port the service was configured with.
-    exec = "env NIXDASH_PORT=${toString cfg.port} ${lib.getExe cfg.ui.package}";
+    exec = "env NIXDASH_PORT=${toString cfg.port} ${launcher}";
     # Themed name, resolved from hicolor below - not an absolute path. The
     # icon is scalable, so the theme lookup is what lets a 24px panel and a
     # 48px menu each get a crisp render from the one SVG.
@@ -86,6 +115,19 @@ in
         default = pkgs.callPackage ./ui.nix { };
         defaultText = lib.literalExpression "pkgs.callPackage ./ui.nix { }";
         description = "The nixdash desktop UI package.";
+      };
+
+      devBuild = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = "${toString ../.}/target/debug/nixdash-ui";
+        defaultText = lib.literalExpression ''"\''${toString ../.}/target/debug/nixdash-ui"'';
+        description = ''
+          Path to a local `cargo build -p nixdash-ui` binary. When it is newer
+          than the installed generation, the menu entry and the panel launcher
+          run it instead of the installed one - so the icon always starts the
+          most recent build rather than the last one switched in. Set to null
+          to always run the installed binary.
+        '';
       };
 
       autostart = lib.mkOption {

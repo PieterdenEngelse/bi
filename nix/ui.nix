@@ -71,6 +71,14 @@ rustPlatform.buildRustPackage {
     export QMAKE=${qtEnv}/bin/qmake
   '';
 
+  # Exposed so the home-manager module can hand an unwrapped local build the
+  # same plugin and QML import paths wrapQtAppsHook bakes into this one.
+  # Defining the env a second time there would be a third copy of the comment
+  # above, and a chance for the two to drift.
+  passthru = {
+    inherit qtEnv;
+  };
+
   meta = {
     description = "nixdash desktop UI";
     mainProgram = "nixdash-ui";

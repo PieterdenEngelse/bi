@@ -28,8 +28,18 @@ impl ActionProvider for GarbageCollect {
             title: "Collect garbage in the Nix store".into(),
             subject: Subject::NixOS,
             kind: ActionKind::Shell,
-            why: "Old generations and unreferenced paths accumulate. Run the \
-                  dry-run first to see what would be freed."
+            // Says what is NOT measured, and keeps the dry-run out of the
+            // imperative. The previous wording - "run the dry-run first to
+            // see what would be freed" - sat directly beside a Run button
+            // that does no such thing: it goes straight to -d. The confirm
+            // dialog shows the real argv a step later, but by then the
+            // sentence has already read as an instruction that button
+            // fulfils.
+            why: "Old generations and unreferenced paths accumulate. How \
+                  much is not measured here - finding out means walking the \
+                  whole store, which is not something to do on a timer. The \
+                  command shown opens with a dry-run so you can see the \
+                  figure first; Run skips it and deletes."
                 .into(),
             info: ActionInfo {
                 what: "Deletes store paths nothing references any more. With \

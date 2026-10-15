@@ -200,7 +200,7 @@ than leaving the working one running." }
                     id: pendingBadge
                     anchors.centerIn: parent
                     text: "changes not applied"
-                    font.pixelSize: 10
+                    font.pixelSize: style.fontBody
                     color: style.pendingText
                 }
             }
@@ -212,7 +212,7 @@ than leaving the working one running." }
         SelectableText {
             Layout.fillWidth: true
             text: root.filePath === "" ? "" : "written to " + root.filePath
-            font.pixelSize: 10
+            font.pixelSize: style.fontBody
             wrapMode: TextEdit.Wrap
         }
 
@@ -221,7 +221,7 @@ than leaving the working one running." }
             visible: root.lastError !== ""
             text: "✗ " + root.lastError
             color: style.badText
-            font.pixelSize: 11
+            font.pixelSize: style.fontBody
             wrapMode: TextEdit.Wrap
         }
 
@@ -234,7 +234,7 @@ than leaving the working one running." }
 
                 SelectableText {
                     text: modelData.label
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                     Layout.preferredWidth: 190
                 }
 
@@ -275,7 +275,7 @@ than leaving the working one running." }
                             return "running: " + root.effective.port
                         return "running: " + String(root.effective.logLevel || "")
                     }
-                    font.pixelSize: 10
+                    font.pixelSize: style.fontBody
                     color: style.pendingText
                     wrapMode: TextEdit.NoWrap
                     clip: true

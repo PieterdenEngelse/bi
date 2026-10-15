@@ -57,14 +57,14 @@ Panel {
                 // drag, so selecting here does not scroll the list instead.
                 SelectableText {
                     text: modelData.unit + "  (" + modelData.scope + ")"
-                    font.pixelSize: 12
+                    font.pixelSize: style.fontBody
                     color: style.badDot
                     wrapMode: TextEdit.Wrap
                     width: parent.width
                 }
                 SelectableText {
                     text: modelData.description
-                    font.pixelSize: 10
+                    font.pixelSize: style.fontBody
                     wrapMode: TextEdit.Wrap
                     width: parent.width
                 }
