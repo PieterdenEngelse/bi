@@ -130,9 +130,31 @@ providers. That is the whole of the feature.
 | `restart-{scope}-{unit}` | a unit is failed | `systemctl [--user] restart UNIT`; elevated only for system scope |
 | `gc-store` | always, at `routine` urgency | `nix-collect-garbage -d`, elevated |
 | `check-escalation` | always, when `pkexec` exists | `true`, elevated — **nothing**, on purpose |
+| `apply-nixdash-settings` | a declared setting differs from the running one | `home-manager switch`, unelevated |
+| `install-system-config` | the staged system file differs from the installed one | `install -m 0644 STAGED INSTALLED`, elevated |
 | `qt-merged-prefix` | the Qt prefix is missing host tools | nothing — Nix snippet |
-| `rust-emscripten-target` | `wasm32-unknown-emscripten` std is missing | nothing — Nix snippet |
-| `rust-lld` | `lld` is not on the engine's PATH | nothing — Nix snippet |
+| `rebuild-wasm-ui` | the compiled `.wasm` is older than a file in `qml/` | `nix develop .#wasm --command bash ui-wasm/build.sh` |
+| `rust-emscripten-target` | the rustc **on PATH** has no `wasm32-unknown-emscripten` std | nothing — Nix snippet |
+| `rust-lld` | `wasm32-unknown-unknown` is installed and `lld` is not on PATH | nothing — Nix snippet |
+| `rust-src-missing` | `rust-analyzer` is installed but the std sources are not | nothing — Nix snippet |
+
+Two of these are worth reading twice, because each states the scope of its
+own probe rather than a conclusion about the machine.
+
+`rust-emscripten-target` says *the rustc on PATH*, not "no Emscripten
+target". It once said a Qt for WebAssembly build "cannot compile", which is a
+claim about every environment here drawn from one — and false on this machine,
+where the browser UI builds in `nix develop .#wasm` against a toolchain that
+carries exactly that target. Same failure as the Qt panel's old "no Qt in this
+environment": a missing tool in the environment you looked at is not a missing
+technology. The row still fires, because the rustc on PATH genuinely lacks the
+target; what changed is that it no longer generalises.
+
+`rust-lld` is gated on the target that needs it being installed, because `lld`
+alone is not a problem. Its snippet quotes the real error text,
+``error: linker `lld` not found`` — verified by compiling for the target rather
+than guessed, which is how a probe for a binary named `clippy` once reported a
+working toolchain as broken.
 
 Note the asymmetry `restart-*` makes visible: a **user** unit is yours to
 restart, a **system** unit prompts. `needs_root` mirrors `run.elevate`, and a
