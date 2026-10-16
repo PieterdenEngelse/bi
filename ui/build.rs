@@ -35,6 +35,7 @@ fn main() {
             "qml/StatBlock.qml",
             "qml/SelectableText.qml",
             "qml/Clipboard.qml",
+            "qml/CloseX.qml",
             "qml/ClickOrSelectArea.qml",
             "qml/QtPanel.qml",
             "qml/RustPanel.qml",

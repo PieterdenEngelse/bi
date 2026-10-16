@@ -565,11 +565,21 @@ everything here will look untouched." }
         contentItem: ColumnLayout {
             spacing: 10
 
-            SelectableText {
+            RowLayout {
                 Layout.fillWidth: true
-                text: "nixdash"
-                font.bold: true
-                font.pixelSize: 15
+                spacing: 8
+
+                SelectableText {
+                    Layout.fillWidth: true
+                    text: "nixdash"
+                    font.bold: true
+                    font.pixelSize: 15
+                }
+
+                CloseX {
+                    Layout.alignment: Qt.AlignTop | Qt.AlignRight
+                    onClicked: about.close()
+                }
             }
 
             SelectableText {

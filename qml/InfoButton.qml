@@ -241,16 +241,34 @@ Item {
             // attempt. Measured against the longest tab in the app rather
             // than derived, so treat it as slack: too much shows as a little
             // space under short prose, too little eats a line.
-            readonly property int chrome: bar.visible ? 152 : 128
+            // The 8 is the title row growing to the close button's 28px
+            // height from the title's own ~20. Erring high on purpose: the
+            // note above says too much chrome shows as a little space under
+            // short prose, while too little eats a line of it.
+            readonly property int chrome: bar.visible ? 160 : 136
             readonly property int wanted: contentColumn.tallest
                                         + contentColumn.chrome
 
-            SelectableText {
+            RowLayout {
                 Layout.fillWidth: true
-                text: root.title
-                font.bold: true
-                font.pixelSize: 15
-                wrapMode: TextEdit.Wrap
+                spacing: 8
+
+                SelectableText {
+                    Layout.fillWidth: true
+                    text: root.title
+                    font.bold: true
+                    font.pixelSize: 15
+                    wrapMode: TextEdit.Wrap
+                }
+
+                // Top right, where a close control is looked for first. The
+                // Close button at the bottom stays: it is the one you reach
+                // after READING, and this is the one you reach when the panel
+                // was opened by accident.
+                CloseX {
+                    Layout.alignment: Qt.AlignTop | Qt.AlignRight
+                    onClicked: panel.close()
+                }
             }
 
             // Tabs only when there is something to tab between. One tab is

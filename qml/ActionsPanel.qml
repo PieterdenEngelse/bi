@@ -106,6 +106,38 @@ Panel {
         title: confirm.action ? confirm.action.title : ""
         standardButtons: Dialog.Cancel | Dialog.Ok
 
+        // A header of its own, so this modal carries the same close control
+        // as the other two. Dialog draws a title bar when `title` is set, but
+        // that bar has no close affordance and no slot to put one in - the
+        // property is the text, not the bar - so the bar is replaced rather
+        // than decorated.
+        header: RowLayout {
+            spacing: 8
+
+            Label {
+                Layout.fillWidth: true
+                Layout.leftMargin: 16
+                Layout.topMargin: 12
+                Layout.bottomMargin: 4
+                text: confirm.title
+                font.bold: true
+                font.pixelSize: 15
+                elide: Text.ElideRight
+            }
+
+            // reject(), not close(). Dismissing a confirmation has to take
+            // the same path as Cancel: close() would end the dialog without
+            // the rejected() that Cancel emits, so a caller that ever learns
+            // to listen for it would silently miss this way out. Nothing is
+            // run either way, which is the part that matters here.
+            CloseX {
+                Layout.alignment: Qt.AlignTop
+                Layout.topMargin: 8
+                Layout.rightMargin: 8
+                onClicked: confirm.reject()
+            }
+        }
+
         onAccepted: if (confirm.action) root.startRun(confirm.action)
 
         contentItem: Column {

@@ -41,6 +41,13 @@ const EXEMPT: &[(&str, &str)] = &[
          that explains the gesture - the subject cards do exactly that.",
     ),
     (
+        "CloseX.qml:*",
+        "The close X every modal carries. Its mechanism is the whole of its \
+         label: it shuts the panel in front of you, and Escape does the same. \
+         An info button inside the close control of an info panel would be a \
+         panel explaining how to leave itself.",
+    ),
+    (
         "InfoButton.qml:*",
         "InfoButton IS the explanation mechanism. Its own trigger and its \
          panel's close button cannot explain themselves without recursion.",

@@ -127,6 +127,38 @@ split into tabs via `sections: [{ title, body }]`.
 panel. "Most of 'used' is reclaimable cache, so this number looks alarming and
 means little" is the one worth having.
 
+## Modals
+
+**Every modal carries a visible way out, top right.** A `Popup` or a `Dialog`
+covers the window, and both already close on Escape and on a click outside —
+but neither of those can be *seen*. A panel with no visible exit reads as a
+hang, and "press Escape" is only obvious to someone who already knows it,
+which is the wrong assumption in an app built for someone still learning the
+machine.
+
+Use the shared `qml/CloseX.qml`, never a hand-rolled button, so the glyph,
+the size and the hit area cannot drift between panels:
+
+```qml
+CloseX { onClicked: thatPopup.close() }
+```
+
+For a confirmation, close through the path the buttons use — `reject()`, not
+`close()` — so dismissing it cannot skip a signal that Cancel would emit.
+
+A bottom `Close` button can stay alongside it. They answer different moments:
+the bottom one is reached after reading, the X when the panel was opened by
+accident.
+
+This is enforced: `engine/tests/qml_modals.rs` counts `Popup {` and
+`Dialog {` declarations per file and fails if the file has fewer `CloseX`
+than modals. Exemptions need a written reason over 60 characters, and the
+list is currently empty — keep it that way.
+
+`CloseX` is itself exempt from the info-button rule: its mechanism is its
+label, and an info button on the close control of an info panel would be a
+panel explaining how to leave itself.
+
 ## Info Panel Voice
 
 Info panels are written from the perspective of someone using the app. To
