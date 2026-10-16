@@ -144,6 +144,7 @@ impl Collector for RustCollector {
                 if_wrong: "If a target you need is absent, add it with a fenix \
                            toolchain in the dev shell rather than reaching for \
                            rustup, which fights Nix.",
+                sections: &[],
             },
             stats: vec![
                 StatInfo {
@@ -153,6 +154,7 @@ impl Collector for RustCollector {
                         why: "Edition and feature availability follow from it.",
                         if_wrong: "A surprising version usually means a dev \
                                    shell is or is not active.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -164,6 +166,7 @@ impl Collector for RustCollector {
                         if_wrong: "Differing major versions between rustc and \
                                    cargo is worth untangling before trusting \
                                    a build.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -175,6 +178,7 @@ impl Collector for RustCollector {
                               (…-rust-mixed…) - otherwise guesswork.",
                         if_wrong: "If you expected fenix and see the nixpkgs \
                                    wrapper, the dev shell is not active.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -184,6 +188,7 @@ impl Collector for RustCollector {
                         why: "Everything else is a cross compile.",
                         if_wrong: "Rarely wrong; informative when comparing \
                                    against the installed target list.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -197,6 +202,7 @@ impl Collector for RustCollector {
                               link.",
                         if_wrong: "A short list is normal. The question is \
                                    only whether the target you need is in it.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -210,6 +216,7 @@ impl Collector for RustCollector {
                         if_wrong: "False plus a wasm32-unknown-unknown build \
                                    means adding `lld` to the dev shell - one \
                                    package, not a toolchain change.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -224,6 +231,7 @@ impl Collector for RustCollector {
                                    \"linker `cc` not found\", which reads as \
                                    a Rust problem and is not one. Add gcc to \
                                    the same package list as rustc.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -236,6 +244,7 @@ impl Collector for RustCollector {
                         if_wrong: "A path outside the store would be \
                                    surprising on NixOS and worth \
                                    investigating.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -250,6 +259,7 @@ impl Collector for RustCollector {
                                    as \"could not find system library\", \
                                    naming the library rather than the missing \
                                    tool.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -268,6 +278,7 @@ impl Collector for RustCollector {
                                    unresolved. It reads as a broken LSP \
                                    rather than a missing component, which is \
                                    why it can go unnoticed for a long time.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -281,6 +292,7 @@ impl Collector for RustCollector {
                               point at.",
                         if_wrong: "Null while rust-analyzer is installed is \
                                    the combination worth acting on.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -298,6 +310,7 @@ impl Collector for RustCollector {
                         if_wrong: "A missing one fails only when you invoke \
                                    it, so this can stay broken for weeks \
                                    without a build ever noticing.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -309,6 +322,7 @@ impl Collector for RustCollector {
                               comparing two lists.",
                         if_wrong: "Add them beside rustc in the same package \
                                    list; they are independent packages.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -322,6 +336,7 @@ impl Collector for RustCollector {
                               from the same build in another shell.",
                         if_wrong: "Pointing it into the Nix store would make \
                                    cargo try to write to a read-only path.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -337,6 +352,7 @@ impl Collector for RustCollector {
                                    no reason, a shared target dir being \
                                    fought over by two toolchains is a common \
                                    cause.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -350,6 +366,7 @@ impl Collector for RustCollector {
                         if_wrong: "An unexpected value here explains both \
                                    mysterious full rebuilds and behaviour \
                                    that differs between shells.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -364,6 +381,7 @@ impl Collector for RustCollector {
                         if_wrong: "Empty is the clean case. A file here is \
                                    worth reading before debugging why one \
                                    machine builds differently from another.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -375,6 +393,7 @@ impl Collector for RustCollector {
                               need Emscripten - Slint and wasm-bindgen use it.",
                         if_wrong: "Present in nixpkgs' rustc, so absence \
                                    suggests a minimal or custom toolchain.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -387,6 +406,7 @@ impl Collector for RustCollector {
                         if_wrong: "False means a Qt-wasm build fails with \
                                    \"can't find crate for std\" before it \
                                    compiles a line of your code.",
+                        sections: &[],
                     },
                 },
             ],

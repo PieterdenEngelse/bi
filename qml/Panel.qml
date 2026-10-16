@@ -167,6 +167,9 @@ Rectangle {
                 what: root.summary && root.summary.info ? root.summary.info.what : ""
                 why: root.summary && root.summary.info ? root.summary.info.why : ""
                 ifWrong: root.summary && root.summary.info ? root.summary.info.if_wrong : ""
+                sections: root.summary && root.summary.info
+                          && root.summary.info.sections
+                          ? root.summary.info.sections : []
             }
         }
 

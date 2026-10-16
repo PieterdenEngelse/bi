@@ -62,6 +62,7 @@ impl Collector for DiskCollector {
                 if_wrong: "Above ~93% a rebuild can fail part-way, which is \
                            the worst moment to discover it. Run the garbage \
                            collection action before that.",
+                sections: &[],
             },
             stats: vec![
                 StatInfo {
@@ -73,6 +74,7 @@ impl Collector for DiskCollector {
                               matters for builds.",
                         if_wrong: "If this is not where your store lives, the \
                                    panel is measuring the wrong thing.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -83,6 +85,7 @@ impl Collector for DiskCollector {
                         why: "Context for the other numbers.",
                         if_wrong: "Not actionable on its own - used_fraction \
                                    is the number to watch.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -93,6 +96,7 @@ impl Collector for DiskCollector {
                               filling.",
                         if_wrong: "Rapid growth with no build running suggests \
                                    something else is writing.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -105,6 +109,7 @@ impl Collector for DiskCollector {
                         if_wrong: "A few GB is tight for a Qt or Rust build; \
                                    wasm artefacts alone are ~24 MB each plus \
                                    intermediates.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -117,6 +122,7 @@ impl Collector for DiskCollector {
                               say 98%, understating exactly when it matters.",
                         if_wrong: "Above 0.93 act now; above 0.98 a build will \
                                    probably fail.",
+                        sections: &[],
                     },
                 },
             ],

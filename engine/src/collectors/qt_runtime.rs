@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::collector::{Collector, Info, PanelMeta, StatInfo, Status, Subject};
+use crate::collector::{Collector, Info, PanelMeta, Section, StatInfo, Status, Subject};
 
 /// Which Qt is actually *running*, as opposed to which one could build.
 ///
@@ -202,6 +202,53 @@ impl Collector for QtRuntimeCollector {
                            panel's, you are building against a different Qt \
                            than you are running, which is a real problem and \
                            usually means a stale devShell.",
+                sections: &[
+                    Section {
+                        title: "How a program finds its Qt",
+                        body: "Not through <tt>PATH</tt>, and not through \
+<tt>LD_LIBRARY_PATH</tt>. When the binary was linked, the exact store paths \
+of every library it needs were written into it as <tt>RPATH</tt>. At startup \
+the loader reads that list and nothing else.<br><br>\
+Three consequences worth holding on to:<br>\
+<ul>\
+<li><b>Nothing you do to your shell changes it.</b> Entering a devShell with \
+a different Qt does not affect an already-installed program - its Qt was \
+decided at link time.</li>\
+<li><b>Two programs can use different Qts at once</b>, with no conflict and \
+no global version. That is the whole point of the store.</li>\
+<li><b>'No qmake on PATH' is compatible with Qt running fine.</b> The other \
+Qt panel answers a build-time question; this one answers a run-time \
+question.</li>\
+</ul>\
+The version here is read back out of the installed executable, so it is what \
+is actually loaded - not what a package list claims.",
+                    },
+                    Section {
+                        title: "Why the inspected path has a dot in it",
+                        body: "The <tt>app</tt> row usually names something \
+like <tt>bin/nixdash-ui</tt> while <tt>inspected</tt> names \
+<tt>bin/.nixdash-ui-wrapped</tt>. Nothing is wrong: that is how Qt programs \
+are packaged on NixOS.<br><br>\
+A Qt application needs to find more than libraries - it loads platform \
+plugins and QML modules at run time, from directories no <tt>RPATH</tt> can \
+express. So the build renames the real executable with a leading dot and puts \
+a small script in its place, which sets <tt>QT_PLUGIN_PATH</tt> and \
+<tt>QML2_IMPORT_PATH</tt> and then runs it.<br><br>\
+The library versions have to be read from the real binary, so the dotted path \
+is the one examined. <tt>wrapped</tt> says whether that indirection is \
+present; a Qt program showing <tt>no</tt> there is the surprising case, and \
+usually means a binary built outside the normal packaging - like a \
+<tt>cargo build</tt> straight out of a devShell.",
+                    },
+                    Section {
+                        title: "References",
+                        body: "<a href='https://doc.qt.io/qt-6/'>Qt 6 \
+documentation</a> &middot; \
+<a href='https://nixos.org/manual/nixpkgs/stable/'>nixpkgs manual</a>, whose \
+Qt section documents the wrapper this panel sees through &middot; \
+<a href='https://nixos.org/manual/nixos/stable/'>NixOS manual</a>.",
+                    },
+                ],
             },
             stats: vec![
                 StatInfo {
@@ -217,6 +264,7 @@ impl Collector for QtRuntimeCollector {
                                    binary was built in a different shell than \
                                    you think. Rebuild and reinstall, then \
                                    check again.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -232,6 +280,7 @@ impl Collector for QtRuntimeCollector {
                                    something is loading libraries from \
                                    outside the store, which on NixOS should \
                                    not happen.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -249,6 +298,21 @@ impl Collector for QtRuntimeCollector {
                                    needs the merged prefix - a symlinkJoin \
                                    will not do, because nixpkgs' qmake has its \
                                    prefix compiled in.",
+                        sections: &[Section {
+                            title: "What a merged prefix is",
+                            body: "<tt>pkgs.qt6.env</tt> \
+builds one store path containing every Qt module you name, so a single \
+prefix can answer for all of them.<br><br>\
+The reason it has to be a real build rather than a pile of symlinks: \
+nixpkgs' qmake has its own installation prefix <b>compiled into it</b>. Link \
+it into a combined directory with <tt>symlinkJoin</tt> and it keeps \
+reporting the path it was built with, so the merge is invisible to exactly \
+the tool that needed to see it.<br><br>\
+Recognising one by sight: a merged prefix is usually named for the \
+environment rather than a module - <tt>…-qt6-env</tt> rather than \
+<tt>…-qtbase-6.11.2</tt>. A bare module name here means whatever is being \
+reported can speak only for that module.",
+                        }],
                     },
                 },
                 StatInfo {
@@ -265,6 +329,27 @@ impl Collector for QtRuntimeCollector {
                                    import error at startup rather than a link \
                                    error, because QML plugins are loaded on \
                                    demand.",
+                        sections: &[Section {
+                            title: "Reading the module list",
+                            body: "These names are \
+read out of the executable's dynamic section - the record of which shared \
+libraries it needs - so this is what the program genuinely loads, not what a \
+package description claims.<br><br>\
+<table>\
+<tr><td><b>Core</b>&nbsp;&nbsp;</td><td>objects, strings, event loop; present \
+in every Qt program</td></tr>\
+<tr><td><b>Gui</b></td><td>windows, images, fonts, the platform \
+integration</td></tr>\
+<tr><td><b>Qml</b></td><td>the QML engine</td></tr>\
+<tr><td><b>Quick</b></td><td>the scene graph that draws QML</td></tr>\
+<tr><td><b>QuickControls2</b></td><td>buttons, tabs and the rest of the \
+widget set</td></tr>\
+<tr><td><b>Network</b></td><td>sockets and HTTP</td></tr>\
+</table><br>\
+A Qml entry without Quick, or Quick without Gui, would be strange enough to \
+be worth investigating - the upper layers depend on the lower ones, so they \
+normally appear together.",
+                        }],
                     },
                 },
                 StatInfo {
@@ -278,6 +363,7 @@ impl Collector for QtRuntimeCollector {
                         if_wrong: "Null means nixdash's desktop UI is not \
                                    installed in your profile. Enable \
                                    services.nixdash.ui to install it.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -292,6 +378,7 @@ impl Collector for QtRuntimeCollector {
                         if_wrong: "If this equals the app path, no wrapper was \
                                    found and the binary was read directly - \
                                    which is normal for an unwrapped build.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -305,6 +392,7 @@ impl Collector for QtRuntimeCollector {
                               fails to find its platform plugin.",
                         if_wrong: "An unwrapped Qt app that cannot find \
                                    'xcb' is missing exactly this wrapping.",
+                        sections: &[],
                     },
                 },
             ],

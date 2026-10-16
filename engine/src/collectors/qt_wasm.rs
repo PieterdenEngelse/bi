@@ -5,7 +5,7 @@ use anyhow::Result;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::collector::{Collector, Info, PanelMeta, StatInfo, Status, Subject};
+use crate::collector::{Collector, Info, PanelMeta, Section, StatInfo, Status, Subject};
 use crate::collectors::qt_runtime::{ui_candidates, unwrap_binary, version_from_prefix};
 
 /// The WebAssembly half of the project: is it built, and is it current?
@@ -180,6 +180,66 @@ impl Collector for QtWasmCollector {
                            of them. An emcc mismatch is the serious one: it \
                            fails deep in a link step, naming a symbol rather \
                            than the version.",
+                sections: &[
+                    Section {
+                        title: "Why this needs two Qts",
+                        body: "Every other platform Qt supports builds with \
+one Qt. WebAssembly needs two at once, and that is the single fact most of \
+this panel exists to report.<br><br>\
+A Qt built <i>for</i> WebAssembly is made of wasm. The tools that run during \
+a build - <tt>moc</tt>, <tt>rcc</tt>, <tt>qmltyperegistrar</tt>, \
+<tt>qmlcachegen</tt> - cannot execute on your machine in that form. So a \
+second, ordinary Qt of the <b>same version</b> has to be present to supply \
+them.<br><br>\
+<table>\
+<tr><td><b><tt>sdk</tt></b>&nbsp;&nbsp;</td><td>the Qt compiled to wasm, \
+which the browser UI links against</td></tr>\
+<tr><td><b><tt>host_env</tt></b></td><td>the native Qt of the same version, \
+which supplies the tools that run during the build</td></tr>\
+<tr><td><b><tt>versions_match</tt></b></td><td>whether those two agree - the \
+check that exists because mismatching them fails confusingly</td></tr>\
+</table><br>\
+WebAssembly is one of Qt's platform ports, alongside Windows, macOS, Android \
+and the rest - the same API with a different backend. It is simply the port \
+with the most setup around it.",
+                    },
+                    Section {
+                        title: "The Emscripten pin",
+                        body: "Each Qt release is built against one specific \
+Emscripten version, and it is not advisory. <tt>emcc_recommended</tt> is read \
+out of the Qt-for-wasm build itself rather than guessed.<br><br>\
+Use a different one and the build usually reaches the link step before \
+failing, reporting an undefined symbol or an ABI complaint - an error that \
+names a symbol, not a version, and so sends you looking at your own code \
+first. This is the mismatch worth checking before anything else.<br><br>\
+<tt>wasm_bytes</tt> is the size of the compiled output. It is large by web \
+standards because a Qt application ships its own toolkit; that is expected, \
+not a fault.",
+                    },
+                    Section {
+                        title: "Stale is not broken",
+                        body: "Both user interfaces compile from one \
+<tt>qml/</tt> directory, symlinked into each build. An edit therefore reaches \
+both - but only the desktop one is rebuilt in the ordinary course of \
+work.<br><br>\
+So the browser build keeps serving whatever was last compiled, which looks \
+<i>identical to working</i>. <tt>stale</tt>, <tt>stale_by_secs</tt> and \
+<tt>newest_qml_file</tt> exist to make that visible: the last names the file \
+that is ahead of the build, which is usually the one you just \
+edited.<br><br>\
+Rebuilding it is a listed action under Suggested actions, and takes several \
+minutes. Nothing is lost by not doing it - only the browser UI is affected, \
+and it writes only into a disposable build directory.",
+                    },
+                    Section {
+                        title: "References",
+                        body: "<a href='https://doc.qt.io/qt-6/wasm.html'>Qt \
+for WebAssembly</a> &middot; \
+<a href='https://emscripten.org/'>Emscripten</a> &middot; \
+<a href='https://webassembly.org/'>WebAssembly</a> &middot; \
+<a href='https://doc.qt.io/qt-6/'>Qt 6 documentation</a>.",
+                    },
+                ],
             },
             stats: vec![
                 StatInfo {
@@ -193,6 +253,7 @@ impl Collector for QtWasmCollector {
                         if_wrong: "False simply means you have never built \
                                    it, or the build directory was cleaned. It \
                                    is not a fault.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -209,6 +270,7 @@ impl Collector for QtWasmCollector {
                                    `nix develop .#wasm`. The wasm toolchain \
                                    is a separate dev shell - the default one \
                                    has no emcc and no wasm32 Rust target.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -219,6 +281,7 @@ impl Collector for QtWasmCollector {
                               rebuild anyway' from 'this has been out of date \
                               for days'.",
                         if_wrong: "Null when the build is current or absent.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -230,6 +293,7 @@ impl Collector for QtWasmCollector {
                         if_wrong: "If this is a file you do not recognise \
                                    editing, something else rewrote it - a \
                                    formatter, or a checkout.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -246,6 +310,7 @@ impl Collector for QtWasmCollector {
                                    store was garbage collected under the \
                                    build. Re-run cmake; the build directory \
                                    is disposable.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -260,6 +325,7 @@ impl Collector for QtWasmCollector {
                                    difference is worth knowing before \
                                    debugging a bug that reproduces in only \
                                    one UI.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -274,6 +340,7 @@ impl Collector for QtWasmCollector {
                         if_wrong: "Null means the desktop UI is not \
                                    installed, so there is nothing to compare \
                                    against and versions_match is also null.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -288,6 +355,7 @@ impl Collector for QtWasmCollector {
                         if_wrong: "Null means one side could not be \
                                    determined - usually the desktop UI is not \
                                    installed.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -302,6 +370,7 @@ impl Collector for QtWasmCollector {
                         if_wrong: "Missing QT_HOST_PATH is one of the first \
                                    errors a Qt cross build gives, and it says \
                                    so plainly.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -318,6 +387,7 @@ impl Collector for QtWasmCollector {
                                    than this Qt, pin the nixpkgs that carries \
                                    the matching version rather than \
                                    overriding the check.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -329,6 +399,7 @@ impl Collector for QtWasmCollector {
                               knowing before serving it over anything slow.",
                         if_wrong: "A sudden drop usually means a build \
                                    failed partway and left a truncated file.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -341,6 +412,24 @@ impl Collector for QtWasmCollector {
                                    file came from the Nix store, where mtimes \
                                    are normalised - not the case for a local \
                                    build directory.",
+                        sections: &[Section {
+                            title: "Why these are raw epoch seconds",
+                            body: "Both \
+timestamps are seconds since 1970 rather than dates, and the staleness check \
+compares them directly. There is a reason it is not done the obvious \
+way.<br><br>\
+<b>Every file in the Nix store has the same modification time</b> - the \
+epoch - because reproducible builds cannot embed the moment they ran. So the \
+installed copy of anything is timestamped 1970, and any comparison against \
+it is meaningless.<br><br>\
+What is compared instead: <tt>built_at</tt> comes from the build output in \
+the working tree, which is an ordinary directory with real times, and \
+<tt>newest_qml_at</tt> from the newest source file. The same trap is why the \
+menu entry compares against a generation symlink rather than a store \
+path.<br><br>\
+A <tt>built_at</tt> at or near zero means the build output being looked at \
+came from the store, and the staleness answer should not be trusted.",
+                        }],
                     },
                 },
                 StatInfo {
@@ -351,6 +440,7 @@ impl Collector for QtWasmCollector {
                         if_wrong: "Null means qml/ could not be read, which \
                                    would mean the project directory is not \
                                    where this panel thinks it is.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -364,6 +454,7 @@ impl Collector for QtWasmCollector {
                                    variable nor the default path resolved to \
                                    a directory, and this panel can say \
                                    nothing.",
+                        sections: &[],
                     },
                 },
             ],

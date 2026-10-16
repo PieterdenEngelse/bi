@@ -67,6 +67,7 @@ impl Collector for MemoryCollector {
                            reclaim is costing real time - the next big build \
                            may trigger the OOM killer, which tends to take an \
                            unrelated process with it.",
+                sections: &[],
             },
             stats: vec![
                 StatInfo {
@@ -76,6 +77,7 @@ impl Collector for MemoryCollector {
                         why: "The ceiling everything else is measured against.",
                         if_wrong: "Only wrong if it changes, which would mean a \
                                hardware or VM reconfiguration.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -89,6 +91,7 @@ impl Collector for MemoryCollector {
                         if_wrong: "Below ~500 MB, expect the OOM killer during a \
                                parallel build. Reduce job count before it \
                                picks a victim for you.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -100,6 +103,7 @@ impl Collector for MemoryCollector {
                           for cache rather than wasting it.",
                         if_wrong: "A low value here alone is not a problem. Judge \
                                by available_kb instead.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -110,6 +114,7 @@ impl Collector for MemoryCollector {
                           OOM killer.",
                         if_wrong: "Zero swap means pressure turns into kills with \
                                no warning phase.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -120,6 +125,7 @@ impl Collector for MemoryCollector {
                           the buffer is being spent.",
                         if_wrong: "Near zero with low available memory is the \
                                state immediately before an OOM kill.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -130,6 +136,7 @@ impl Collector for MemoryCollector {
                           the sparkline plots.",
                         if_wrong: "Above ~0.9 sustained during a build is the \
                                shape that precedes a kill.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -141,6 +148,7 @@ impl Collector for MemoryCollector {
                           \"reclaim is costing time\" (not harmless).",
                         if_wrong: "Anything sustained above ~10 means real time \
                                is being lost to reclaim right now.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -151,6 +159,7 @@ impl Collector for MemoryCollector {
                           whether a trend is real.",
                         if_wrong: "Above ~1 means the machine has been under \
                                genuine memory pressure for a while.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -162,6 +171,7 @@ impl Collector for MemoryCollector {
                           work at all for that fraction of time.",
                         if_wrong: "Any sustained non-zero value is severe; the \
                                system is thrashing.",
+                        sections: &[],
                     },
                 },
             ],

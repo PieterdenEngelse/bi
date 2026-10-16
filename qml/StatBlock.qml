@@ -144,7 +144,11 @@ Item {
     // Two costs, both real: double-click-to-select-a-word in a panel, and the
     // X11 primary selection, which Qt fills from its own mouse handling and
     // not from a programmatic selection - so middle-click paste works from
-    // Config tiles but not from these readings. Ctrl+C and Ctrl+Shift+C do.
+    // Config tiles but not from these readings.
+    //
+    // The ORDINARY clipboard is filled either way: ClickOrSelectArea copies
+    // on release just as a directly-pressed text does, so Ctrl+V, Ctrl+C and
+    // Ctrl+Shift+C all work here. Only middle-click is lost.
     ClickOrSelectArea {
         anchors.fill: body
         textItem: body
@@ -180,6 +184,10 @@ Item {
             why: stat ? stat.why : (modelData.why ? modelData.why : "")
             ifWrong: stat ? stat.if_wrong
                           : (modelData.ifWrong ? modelData.ifWrong : "")
+            // Absent on every reading that does not want tabs: the engine
+            // skips the field entirely when the slice is empty, so this is
+            // undefined far more often than it is a list.
+            sections: stat && stat.sections ? stat.sections : []
         }
     }
 }

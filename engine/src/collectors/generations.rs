@@ -76,6 +76,7 @@ impl Collector for GenerationsCollector {
                 if_wrong: "They cost almost nothing while they share a nixpkgs \
                            revision, so a long list is history, not a problem \
                            - until the disk panel complains.",
+                sections: &[],
             },
             stats: vec![
                 StatInfo {
@@ -87,6 +88,7 @@ impl Collector for GenerationsCollector {
                         if_wrong: "A large number is harmless unless disk is \
                                    tight; generations sharing a nixpkgs \
                                    revision share nearly all their content.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -99,6 +101,7 @@ impl Collector for GenerationsCollector {
                         if_wrong: "If this is not the highest number, \
                                    something rolled back - deliberately or \
                                    not.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -113,6 +116,7 @@ impl Collector for GenerationsCollector {
                                    from the new generation, kernel from the \
                                    old. Usually fine, occasionally the reason \
                                    something inexplicable is broken.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -126,6 +130,7 @@ impl Collector for GenerationsCollector {
                         if_wrong: "A gap in the numbering means generations \
                                    were collected; you cannot roll back past \
                                    the oldest one shown.",
+                        sections: &[],
                     },
                 },
             ],

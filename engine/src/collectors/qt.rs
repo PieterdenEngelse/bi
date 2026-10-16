@@ -5,7 +5,7 @@ use anyhow::Result;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::collector::{Collector, Info, PanelMeta, StatInfo, Status, Subject};
+use crate::collector::{Collector, Info, PanelMeta, Section, StatInfo, Status, Subject};
 
 /// The Qt development setup, judged by whether it will actually work.
 ///
@@ -162,6 +162,72 @@ impl Collector for QtCollector {
                            build against it you still have to point a build \
                            there, which is what the development shell's QMAKE \
                            does.",
+                sections: &[
+                    Section {
+                        title: "Where qmake is looked for",
+                        body: "Three places, in the order that decides what a \
+build actually uses. The first hit wins, and the panel says which one it \
+was.<br><br>\
+<table>\
+<tr><td><b><tt>QMAKE</tt></b>&nbsp;&nbsp;</td><td>An explicit path you set. \
+This is the one to use on NixOS: it names a prefix rather than hoping the \
+right one is first on <tt>PATH</tt>.</td></tr>\
+<tr><td><b><tt>PATH</tt></b></td><td>The usual lookup. Inside a devShell this \
+is normally the right answer; outside one there is usually no qmake at all, \
+which is not a fault.</td></tr>\
+<tr><td><b>this app's own Qt</b></td><td>Last resort, so that something is \
+measured rather than nothing. A qmake found here is <i>reported</i> and never \
+counted as a working build setup - no build is pointed at it.</td></tr>\
+</table><br>\
+Remember whose environment is being searched: the app's background service, \
+not the shell you are sitting in. Entering a devShell in a terminal will not \
+change what this panel says.",
+                    },
+                    Section {
+                        title: "Why one prefix is not enough",
+                        body: "cxx-qt interrogates a single qmake and takes \
+its answer as the whole truth - headers, libraries and the host tools that \
+generate code. nixpkgs does not ship Qt that way. Each Qt module is its own \
+store path, and the tools are spread across them:<br><br>\
+<table>\
+<tr><td><b>qtbase</b>&nbsp;&nbsp;</td><td><tt>moc</tt>, <tt>rcc</tt>, \
+<tt>uic</tt>, <tt>qmake</tt></td></tr>\
+<tr><td><b>qtdeclarative</b></td><td><tt>qmltyperegistrar</tt>, \
+<tt>qmlcachegen</tt></td></tr>\
+</table><br>\
+So a qtbase-only prefix is complete by its own lights and still cannot build \
+QML. The failure arrives late, during code generation, naming the missing \
+tool rather than the prefix that lacks it.<br><br>\
+<b>The fix is <tt>pkgs.qt6.env</tt></b>, which produces one prefix carrying \
+all of them. A plain <tt>symlinkJoin</tt> does not work here: nixpkgs' qmake \
+has its own prefix compiled in, so it reports where it was built rather than \
+where you linked it.",
+                    },
+                    Section {
+                        title: "Build time is not run time",
+                        body: "These are two unrelated questions, and treating \
+them as one is the most common misreading of how Nix works.<br><br>\
+<b>Running</b> a Qt program needs libraries, which the executable finds \
+through <tt>RPATH</tt> - a list of store paths baked into the binary when it \
+was linked. <tt>PATH</tt> plays no part whatsoever.<br><br>\
+<b>Building</b> Qt software needs development tools, which are found through \
+<tt>PATH</tt> or <tt>QMAKE</tt> and on NixOS usually exist only inside a \
+devShell.<br><br>\
+That is why this panel can honestly report no qmake while the window you are \
+reading it in is drawn by Qt. The Qt runtime panel answers the other \
+question.",
+                    },
+                    Section {
+                        title: "References",
+                        body: "<a href='https://doc.qt.io/qt-6/qmake-manual.html'>\
+qmake manual</a> &middot; \
+<a href='https://doc.qt.io/qt-6/'>Qt 6 documentation</a> &middot; \
+<a href='https://nixos.org/manual/nixpkgs/stable/'>nixpkgs manual</a>, whose \
+Qt section covers the wrapper hooks and why Qt packages are split &middot; \
+<a href='https://github.com/KDAB/cxx-qt'>cxx-qt</a>, which is what asks qmake \
+these questions during this project's own build.",
+                    },
+                ],
             },
             stats: vec![
                 StatInfo {
@@ -184,6 +250,7 @@ impl Collector for QtCollector {
                                    use that qmake either - it is reported \
                                    because it is the one thing about a build \
                                    prefix this machine can actually show you.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -195,6 +262,27 @@ impl Collector for QtCollector {
                               build.",
                         if_wrong: "If this points at qtbase alone, expect the \
                                    missing-tools problem below.",
+                        sections: &[Section {
+                            title: "Reading a store path",
+                            body: "A path like \
+<tt>/nix/store/<i>hash</i>-qtbase-6.11.2-dev/bin/qmake</tt> answers more than \
+'where is qmake'.<br><br>\
+<ul>\
+<li>The <b>hash</b> is computed from every input that built it - sources, \
+compiler, flags, dependencies. Two Qts with the same version but different \
+hashes are genuinely different builds, and that is why a version number \
+alone cannot tell you whether a prefix is coherent.</li>\
+<li>The <b>name</b> says which package provided it. <tt>qtbase</tt> here is \
+the warning sign this panel exists for: qtbase alone cannot build QML.</li>\
+<li>The <b><tt>-dev</tt></b> suffix is a separate output of the same \
+package, holding headers and development tools. The libraries a running \
+program loads live in the output without it - which is why running Qt and \
+building Qt reach for different store paths.</li>\
+</ul>\
+A path outside <tt>/nix/store</tt> means something is supplying qmake from \
+elsewhere, and whatever it reports cannot be trusted to match what a Nix \
+build would use.",
+                        }],
                     },
                 },
                 StatInfo {
@@ -206,6 +294,7 @@ impl Collector for QtCollector {
                               specific Emscripten version for WebAssembly.",
                         if_wrong: "A mismatch between host and target Qt fails \
                                    the cross build immediately.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -218,6 +307,7 @@ impl Collector for QtCollector {
                               Qt or several.",
                         if_wrong: "A prefix that is a bare qtbase store path \
                                    cannot satisfy a QML build.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -229,6 +319,20 @@ impl Collector for QtCollector {
                               required tools.",
                         if_wrong: "Null means qmake could not say, and no tool \
                                    check was possible.",
+                        sections: &[Section {
+                            title: "Why libexec, not bin",
+                            body: "Qt 6 moved its \
+code-generation tools out of <tt>bin</tt> and into <tt>libexec</tt>, which is \
+why this row exists separately from the prefix.<br><br>\
+They are not commands you are expected to run. <tt>moc</tt>, <tt>rcc</tt>, \
+<tt>uic</tt>, <tt>qmltyperegistrar</tt> and <tt>qmlcachegen</tt> are invoked \
+by the build system with arguments it computes, and putting them on \
+<tt>PATH</tt> would offer you tools you have no reason to call by \
+hand.<br><br>\
+The practical consequence: looking for <tt>moc</tt> on your <tt>PATH</tt> and \
+not finding it proves nothing either way. This directory is the one that \
+decides, and it is the one checked.",
+                        }],
                     },
                 },
                 StatInfo {
@@ -240,6 +344,25 @@ impl Collector for QtCollector {
                         if_wrong: "Seeing wasm-emscripten when you meant to \
                                    build a desktop app means QMAKE points at \
                                    the wasm SDK.",
+                        sections: &[Section {
+                            title: "mkspecs",
+                            body: "<tt>QMAKE_XSPEC</tt> names the platform \
+this Qt produces output for. It is how a host Qt and a cross-compiling Qt are \
+told apart, since both answer every other question identically.<br><br>\
+<table>\
+<tr><td><b><tt>linux-g++</tt></b>&nbsp;&nbsp;</td><td>an ordinary native Qt, \
+GCC - what this machine expects</td></tr>\
+<tr><td><b><tt>linux-clang</tt></b></td><td>native, Clang instead</td></tr>\
+<tr><td><b><tt>wasm-emscripten</tt></b></td><td>Qt for WebAssembly - see that \
+panel, not this one</td></tr>\
+<tr><td><b><tt>macx-clang</tt></b>, <b><tt>win32-g++</tt></b></td><td>other \
+host platforms</td></tr>\
+</table><br>\
+A surprise here is worth taking seriously: a wasm spec on this panel means \
+<tt>QMAKE</tt> is pointing at the cross Qt, and an ordinary desktop build \
+would produce WebAssembly or fail in ways that make no sense until you look \
+at this row.",
+                        }],
                     },
                 },
                 StatInfo {
@@ -250,6 +373,7 @@ impl Collector for QtCollector {
                               and qmlcachegen only with qtdeclarative.",
                         if_wrong: "Two of four is the classic split-prefix \
                                    signature.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -261,6 +385,28 @@ impl Collector for QtCollector {
                         if_wrong: "Non-empty means a cxx-qt QML build will \
                                    fail. Merge the prefix rather than adding \
                                    more entries to buildInputs.",
+                        sections: &[Section {
+                            title: "What each tool does",
+                            body: "All four run during a \
+build and all four must come from one prefix.<br><br>\
+<table>\
+<tr><td><b><tt>moc</tt></b>&nbsp;&nbsp;</td><td>qtbase&nbsp;&nbsp;</td>\
+<td>reads headers and generates the code behind signals and slots</td></tr>\
+<tr><td><b><tt>rcc</tt></b></td><td>qtbase</td><td>compiles QML and assets \
+into the binary as a resource bundle</td></tr>\
+<tr><td><b><tt>qmltyperegistrar</tt></b></td><td>qtdeclarative</td>\
+<td>registers C++ types so QML can name them</td></tr>\
+<tr><td><b><tt>qmlcachegen</tt></b></td><td>qtdeclarative</td><td>precompiles \
+QML so it is not parsed at startup</td></tr>\
+</table><br>\
+The split down the middle is the whole problem: the first two come with \
+qtbase, so a qtbase-only prefix passes a casual check and then fails on the \
+second two.<br><br>\
+<b>Do not fix this by adding packages to <tt>buildInputs</tt>.</b> The \
+build asks <i>one</i> qmake where the tools are, and a second package in the \
+build inputs does not change that answer. Give it a merged prefix \
+instead.",
+                        }],
                     },
                 },
                 StatInfo {
@@ -272,6 +418,20 @@ impl Collector for QtCollector {
                               cxx-qt build work here?",
                         if_wrong: "False is not a warning, it is a prediction \
                                    of failure.",
+                        sections: &[Section {
+                            title: "What is actually tested",
+                            body: "Not 'is \
+qtdeclarative installed' - that question has misled people here before. Each \
+of the four tools is resolved <b>from the prefix this qmake reports</b>, and \
+the row is true only when all four resolve from that one place.<br><br>\
+That is deliberately the same thing the build will do, so a true here means \
+a build gets the same answer. A false names which tools are absent in the \
+<tt>tools_missing</tt> row rather than leaving you to guess.<br><br>\
+<b>Unknown is not false.</b> If no qmake was found at all there is nothing to \
+test, and the panel says so rather than reporting a failure it never \
+measured - a monitor that reassures or alarms you about a check it could not \
+run is worse than no monitor.",
+                        }],
                     },
                 },
             ],

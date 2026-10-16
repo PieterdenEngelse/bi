@@ -15,6 +15,18 @@ use serde::Serialize;
 ///
 /// These are `&'static str` on purpose: they are written next to the code that
 /// produces the number, by the person who knows why it is computed that way.
+/// One tab in an explanation, for the material that does not fit the three
+/// questions: a reference table, the failure it actually produces, the
+/// upstream docs. The UI shows tabs only when there is more than the
+/// overview, so an empty slice costs nothing.
+#[derive(Debug, Clone, Serialize)]
+pub struct Section {
+    pub title: &'static str,
+    /// Rich text, same subset as the three questions: <b>, <i>, <tt>, <ul>,
+    /// <table>, and <a href> links, which open in the reader's browser.
+    pub body: &'static str,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Info {
     /// What this is, mechanically.
@@ -23,6 +35,11 @@ pub struct Info {
     pub why: &'static str,
     /// What a wrong or alarming value looks like, and what follows from it.
     pub if_wrong: &'static str,
+    /// Extra tabs, beyond the three questions above. Usually empty: most
+    /// readings are fully explained by what/why/if_wrong, and a tab bar over
+    /// a single tab is just a label taking up room.
+    #[serde(skip_serializing_if = "<[Section]>::is_empty")]
+    pub sections: &'static [Section],
 }
 
 /// Explanation for one field inside a panel's reading.

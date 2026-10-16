@@ -120,6 +120,7 @@ impl Collector for FailedUnitsCollector {
                            the named unit before restarting it - a restart \
                            without reading the failure usually just repeats \
                            it.",
+                sections: &[],
             },
             stats: vec![
                 StatInfo {
@@ -129,6 +130,7 @@ impl Collector for FailedUnitsCollector {
                         why: "The single number worth glancing at.",
                         if_wrong: "Zero is the expected state. Anything else \
                                    is worth a look, however boring the unit.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -141,6 +143,7 @@ impl Collector for FailedUnitsCollector {
                         if_wrong: "A unit that reappears after a restart is \
                                    failing at start, not having crashed - read \
                                    its journal rather than restarting again.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -153,6 +156,7 @@ impl Collector for FailedUnitsCollector {
                         if_wrong: "A listed scope means the count above is \
                                    incomplete - treat the green tick as \
                                    unverified, not as good news.",
+                        sections: &[],
                     },
                 },
             ],
