@@ -1,9 +1,13 @@
 // When a build was produced, for the About link in the header.
 //
-// `include!`d by both UIs' build scripts rather than duplicated:
-// `ui-wasm/rust/build_date.rs` is a symlink to this file, the same trick
-// `src/cxxqt_object.rs` already uses. The two `build.rs` files differ
-// elsewhere, so only the shared part is linked.
+// `include!`d by all three build scripts rather than duplicated:
+// `ui-wasm/rust/build_date.rs` and `engine/build_date.rs` are symlinks to
+// this file, the same trick `src/cxxqt_object.rs` already uses. The three
+// `build.rs` files differ elsewhere, so only the shared part is linked.
+//
+// The engine needs it for the same reason the UIs do, plus one more: its
+// freshness panel compares the running binary against source on disk, and a
+// store path's mtime cannot answer when it was built.
 //
 // std only, which is why the calendar arithmetic is here in full. A
 // `chrono` + `chrono-tz` dependency to format one timestamp would pull a
@@ -80,23 +84,34 @@ fn amsterdam_offset(secs: i64) -> i64 {
 /// pinned to the epoch by design, and the process start time says when you
 /// opened the window, not when the binary was made - which is the thing you
 /// actually want to know when the UI looks like it ignored your edit.
-fn build_stamp() -> String {
-    let utc = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs() as i64)
-        .unwrap_or(0);
+///
+/// Takes the instant rather than reading the clock, so that the string and
+/// the epoch emitted beside it describe the same moment.
+fn build_stamp(utc: i64) -> String {
     let local = utc + amsterdam_offset(utc);
     let (y, m, d) = civil_from_days(local.div_euclid(86_400));
     let sod = local.rem_euclid(86_400);
     format!("{y:04}-{m:02}-{d:02} {:02}:{:02}", sod / 3_600, sod % 3_600 / 60)
 }
 
-/// Hands `build_stamp()` to the crate as `env!("NIXDASH_BUILT")`.
+/// Hands the build moment to the crate twice: `env!("NIXDASH_BUILT")` to
+/// show someone, and `env!("NIXDASH_BUILT_AT")` as Unix seconds to compute
+/// with.
+///
+/// Both, because they are read by different kinds of code. The string is for
+/// an About box and is formatted for one timezone; the epoch is for
+/// comparing against a source file's mtime, where parsing the string back
+/// would mean re-deriving the offset at runtime to undo it.
 ///
 /// Cargo only re-runs a build script when something it declared changes, and
 /// cxx-qt declares the QML files and `src/`. So this is "when the build
 /// script last ran", not "when you last typed cargo build" - which is the
 /// honest answer anyway: an untouched tree produces the same binary.
 fn emit_build_date() {
-    println!("cargo:rustc-env=NIXDASH_BUILT={}", build_stamp());
+    let utc = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0);
+    println!("cargo:rustc-env=NIXDASH_BUILT={}", build_stamp(utc));
+    println!("cargo:rustc-env=NIXDASH_BUILT_AT={utc}");
 }

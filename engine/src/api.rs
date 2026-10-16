@@ -93,8 +93,19 @@ pub fn router_with(state: AppState) -> Router {
         .with_state(state)
 }
 
+/// Liveness, and *which build* is answering.
+///
+/// `version` is the crate version, which a solo project bumps rarely enough
+/// that it cannot tell two builds apart. `built` can: it is baked in at
+/// compile time, so a reply from a binary that has been running since before
+/// your last rebuild says so instead of looking identical to a fresh one.
 async fn health() -> Json<serde_json::Value> {
-    Json(json!({ "status": "ok", "version": env!("CARGO_PKG_VERSION") }))
+    Json(json!({
+        "status": "ok",
+        "version": env!("CARGO_PKG_VERSION"),
+        "built": env!("NIXDASH_BUILT"),
+        "built_at": env!("NIXDASH_BUILT_AT").parse::<u64>().ok(),
+    }))
 }
 
 async fn list_panels(State(state): State<AppState>) -> Json<serde_json::Value> {
