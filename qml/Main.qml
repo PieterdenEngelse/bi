@@ -222,7 +222,7 @@ ApplicationWindow {
         })
     }
 
-    Component.onCompleted: { console.log(undefinedThing.nope); refresh() }
+    Component.onCompleted: refresh()
     Timer { interval: 2000; running: true; repeat: true; onTriggered: root.refresh() }
 
     header: ToolBar {
