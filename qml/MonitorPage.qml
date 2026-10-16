@@ -108,7 +108,14 @@ Item {
                         anchors.rightMargin: 12
                         spacing: 10
 
-                        Rectangle { width: 10; height: 10; radius: 5; color: style.badDot }
+                        // implicitWidth/Height, not width/height: a layout
+                        // manages those, so setting them leaves the implicit
+                        // size at 0 and the dot's cell with nothing to
+                        // reserve. It renders today by Qt's tolerance.
+                        Rectangle {
+                            implicitWidth: 10; implicitHeight: 10
+                            radius: 5; color: style.badDot
+                        }
                         SelectableText {
                             text: modelData.title
                             font.bold: true
@@ -177,7 +184,10 @@ Item {
                         spacing: 14
 
                         Rectangle {
-                            width: 12; height: 12; radius: 6
+                            // See the note on the other status dot: a layout
+                            // owns width/height, so these must be implicit.
+                            implicitWidth: 12; implicitHeight: 12
+                            radius: 6
                             Layout.alignment: Qt.AlignVCenter
                             color: root.statusColors[root.worstOf(modelData.key)] || style.unknownDot
                         }

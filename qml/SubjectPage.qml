@@ -180,7 +180,11 @@ build-freshness panel exists to make exactly that visible."
 
                         Loader {
                             Layout.fillWidth: true
+                            // qmllint disable missing-property
+                            // Loader.item is typed QtObject; every component
+                            // below is an Item and has implicitHeight.
                             Layout.preferredHeight: item ? item.implicitHeight : 200
+                            // qmllint enable missing-property
                             // Every panel in a row takes the row's height, so
                             // their top edges line up.
                             //
@@ -240,6 +244,10 @@ build-freshness panel exists to make exactly that visible."
     // Every panel now takes the whole summary: the engine supplies title,
     // headline, severity and the explanations, so the UI stops duplicating
     // judgement it has no business making.
+    // qmllint disable missing-property
+    // `parent` inside a Component is the Loader that instantiates it, typed
+    // QQuickItem - the `summary` property it carries is set in SubjectPage's
+    // Repeater above. qmllint cannot follow that and is right not to try.
     Component {
         id: memoryComp
         MemoryPanel { summary: parent.summary; history: root.memoryHistory }
@@ -268,4 +276,5 @@ build-freshness panel exists to make exactly that visible."
         id: genericComp
         GenericPanel { summary: parent.summary }
     }
+    // qmllint enable missing-property
 }

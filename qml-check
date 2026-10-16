@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Static check of qml/, with no display and no running app.
+#
+# Exists because the alternative was launching the UI to find out whether a
+# binding resolved - which this project forbids, and which costs the user
+# their focus. qmllint answers the same question from the source.
+#
+# Two import paths are needed and neither is on by default:
+#
+#   the Qt modules      QtQuick and friends, found from qmllint's own prefix
+#   target/cxxqt/...    the `nixdash` module, which cxx-qt GENERATES during a
+#                       build. Without a build it does not exist, so the
+#                       nixdash import is reported unresolved - a warning
+#                       about the checker's setup, not about the code.
+#
+# `unqualified` is off. Main.qml sets `pragma ComponentBehavior: Bound`, and
+# the remaining 245 hits are `modelData` inside delegates - idiomatic here,
+# and a category that would drown every real finding.
+set -uo pipefail
+
+cd "$(dirname "$0")"
+root=$(dirname "$(dirname "$(command -v qmllint)")")
+
+out=$(qmllint \
+        -I "$root/lib/qt-6/qml" \
+        -I target/cxxqt/qml_modules \
+        --unqualified disable \
+        qml/*.qml 2>&1 |
+      grep -E '^(Warning|Error):' |
+      grep -v 'Failed to import\|Warnings occurred')
+
+if [ -n "$out" ]; then
+    echo "$out"
+    echo
+    echo "qml-check: $(echo "$out" | wc -l) finding(s)."
+    echo "Intentional duck typing is annotated in place with"
+    echo "  // qmllint disable <category>  …  // qmllint enable <category>"
+    echo "next to the comment that already explains why. Add one there rather"
+    echo "than widening the filter in this script."
+    exit 1
+fi
+echo "qml-check: clean"

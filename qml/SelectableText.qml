@@ -77,8 +77,12 @@ TextEdit {
 
     function findScroller() {
         for (var p = root.parent; p; p = p.parent) {
+            // qmllint disable missing-property
+            // The probe the comment above describes: a Flickable answers,
+            // a plain Item does not, and asking is how we find out.
             if (p.contentY !== undefined && p.flicking !== undefined)
                 return p
+            // qmllint enable missing-property
         }
         return null
     }

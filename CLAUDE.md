@@ -26,7 +26,7 @@ invisible visible**.
 cd engine && RUST_LOG=info cargo run
 
 # Quality gate (must pass before committing)
-cargo fmt --all && cargo clippy --all-targets -- -D warnings
+cargo fmt --all && cargo clippy --all-targets -- -D warnings && ./qml-check
 
 # Tests
 cargo test --all
@@ -45,16 +45,42 @@ systemctl --user restart nixdash-engine.service
 
 ## Collaboration Style
 
-- **No speculative pre-builds.** Do not run `cargo build` or `cargo clippy`
-  just to check for errors after an edit. Build errors surface when the user
-  restarts the service. A build check wastes the user's time — and on this
-  project a UI build is ~90 seconds and a `home-manager switch` is ~15
-  minutes. The quality gate before a *commit* is the exception.
-- **Do not launch the UI.** Not with `cargo run`, not on an Xvfb virtual
-  display, not via `systemd-run`. The user runs it and reports what they see.
-  Driving it with `xdotool` to take screenshots is the same violation wearing
-  different clothes, and stealing window focus while the user is working is
-  worse.
+- **Check your work, off the user's screen.** Build it, lint it, test it,
+  curl it — the cost of a `cargo build` is yours to spend, not theirs. What
+  is expensive is a `home-manager switch` (~15 min), so do not reach for one
+  to see a change.
+- **Never put the UI on the user's screen.** No launching it into their
+  session, no `xdotool`, no `windowactivate`, no screenshots of their
+  display. They run it and report what they see. Stealing focus while they
+  are working is the thing this forbids, and an authorisation to look once
+  is not a standing one.
+
+  **Offscreen is allowed, but it is only a smoke test:**
+
+  ```bash
+  QT_QPA_PLATFORM=offscreen ./target/debug/nixdash-ui
+  ```
+
+  Starts the real app with no window and nothing on the user's display —
+  verified. What it tells you is that the binary runs and stays up.
+
+  It does **not** report QML errors. A deliberate `ReferenceError` in
+  `Main.qml`'s `Component.onCompleted` produced zero bytes on stdout and
+  stderr, with and without `QT_LOGGING_RULES='*.debug=true'`. Why was not
+  chased. Do not treat silence here as evidence that a binding resolved.
+
+  `./qml-check` is the tool that actually finds those, and it needs no app
+  at all. Neither can answer *does it look right*: that judgement is the
+  user's, always, and is what the screenshots were really being used for.
+
+- **Do not take the engine's port.** To exercise engine changes, run a second
+  one beside the service rather than stopping it:
+
+  ```bash
+  NIXDASH_PORT=3199 ./target/debug/nixdash-engine
+  ```
+
+  Stopping `nixdash-engine.service` blanks the app the user is looking at.
 - **Confirmation threshold**: don't ask before small or single-file edits.
   Only ask before major or multi-file changes. Ending every message with
   "shall I continue?" is noise.
@@ -94,6 +120,7 @@ bundle.
 | `engine/src/settings.rs` | the one place the engine writes a file |
 | `engine/src/api.rs` | route registry |
 | `qml/InfoButton.qml` | the explanation mechanism: tabs, rich text, links |
+| `qml-check` | qmllint over `qml/`, with the import paths it needs |
 | `nix/hm-module.nix` | home-manager module — read the sandbox comment before editing |
 
 ## Coding Conventions
