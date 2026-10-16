@@ -88,33 +88,68 @@ ApplicationWindow {
         onActivated: root.visibility = Window.Maximized
     }
 
-    // Ctrl+C copies the current selection, explicitly rather than by leaving
-    // it to the focused item's own key handling. Every value here is a
-    // READ-ONLY TextEdit, which leaves selectByKeyboard false - and in that
-    // state Ctrl+C was reported doing nothing at all.
+    // Ctrl+C and Ctrl+A act on the focused value, explicitly rather than by
+    // leaving either to that item's own key handling. Every value here is a
+    // READ-ONLY TextEdit, and a read-only TextEdit leaves selectByKeyboard
+    // false - the state in which both keys do nothing at all.
     //
-    // One Shortcut for the whole window, not one per panel: two enabled
+    // selectByKeyboard: true would have enabled both natively, at the price
+    // of a blinking text cursor sitting in whichever value was last clicked.
+    // In a window whose values are all read-only readings, a cursor says
+    // "type here", so these two shortcuts buy the same behaviour without it.
+    //
+    // One Shortcut each for the whole window, not one per panel: two enabled
     // shortcuts on the same sequence are ambiguous and then NEITHER fires,
     // which is the same trap that makes Ctrl+Shift+C scope itself to the
     // pointer instead.
-    //
-    // Reads the focused item's live selection rather than a remembered
-    // string, so it copies what is selected now - and an editable field, like
-    // the port spinner, keeps working the way its own Ctrl+C would.
-    //
-    // qmllint reports selectedText and copy as missing from QQuickItem, which
-    // is what activeFocusItem is typed as. That is the point of a probe, the
-    // same way SelectableText walks for a Flickable: QML resolves both at
-    // runtime, a text item answers and anything else does not. Do not "fix"
-    // these two warnings by removing the guards - they are the guards.
+
+    /// The focused item, when it is a text item with a selection to act on.
+    ///
+    /// Duck-typed on purpose. activeFocusItem is typed QQuickItem, so qmllint
+    /// reports selectedText, copy and selectAll as missing from it - the same
+    /// complaint it makes about SelectableText's walk for a Flickable, and
+    /// the same answer: QML resolves all three at runtime, a text item
+    /// answers and anything else does not. Do not "fix" the warnings by
+    /// dropping the probes; the probes are the guard.
+    ///
+    /// An editable field satisfies it too, so the port spinner keeps behaving
+    /// the way its own Ctrl+C and Ctrl+A would.
+    function focusedText() {
+        var it = root.activeFocusItem
+        // qmllint disable missing-property
+        // Probing, not accessing: activeFocusItem is a plain Item until it
+        // turns out to be a text one, which is the whole question here.
+        return it && it.selectedText !== undefined
+               && typeof it.copy === "function"
+               && typeof it.selectAll === "function" ? it : null
+        // qmllint enable missing-property
+    }
+
     Shortcut {
         sequences: [ "Ctrl+C" ]
         onActivated: {
-            var it = root.activeFocusItem
-            if (it && it.selectedText !== undefined
-                && it.selectedText.length > 0
-                && typeof it.copy === "function")
-                it.copy()
+            // The live selection, not a remembered string: this copies what
+            // is selected now.
+            var t = root.focusedText()
+            if (t && t.selectedText.length > 0)
+                t.copy()
+        }
+    }
+
+    // Selects the whole of ONE value - the one last clicked - because that is
+    // as far as a selection reaches here: each reading is its own text item.
+    // Ctrl+Shift+C remains the gesture for a whole pane.
+    //
+    // Deliberately does not copy. Dragging copies because releasing a drag is
+    // an unambiguous "I want this"; Ctrl+A is the ordinary prelude to Ctrl+C
+    // and in every other application leaves the clipboard alone, so making it
+    // write would be a surprise that costs you what you had copied.
+    Shortcut {
+        sequences: [ "Ctrl+A" ]
+        onActivated: {
+            var t = root.focusedText()
+            if (t)
+                t.selectAll()
         }
     }
 
@@ -187,7 +222,7 @@ ApplicationWindow {
         })
     }
 
-    Component.onCompleted: refresh()
+    Component.onCompleted: { console.log(undefinedThing.nope); refresh() }
     Timer { interval: 2000; running: true; repeat: true; onTriggered: root.refresh() }
 
     header: ToolBar {
@@ -227,6 +262,8 @@ rather use the keystroke. A click selects nothing and deliberately leaves the \
 clipboard alone, so reading a value by tapping it cannot cost you what you \
 had copied. On this desktop a <i>dragged</i> value also lands on the X11 \
 primary selection, so a <b>middle-click</b> pastes it without either.<br><br>\
+<tt>Ctrl+A</tt> selects the whole of the value you last clicked, ready for \
+<tt>Ctrl+C</tt>; unlike dragging, it does not copy on its own.<br><br>\
 A selection cannot cross from one value into the next, so for a whole panel \
 at once, point at it and press <b>Ctrl+Shift+C</b> - that copies the pane \
 under the pointer as tab-separated text."
@@ -244,6 +281,10 @@ the primary selection goes the same way for the same reason.</li>\
 <li><b>Ctrl+Shift+C did nothing.</b> The pointer was not over a panel. It \
 copies the pane you are pointing at, so there is no ambiguity about which \
 one you meant.</li>\
+<li><b>Ctrl+A or Ctrl+C did nothing.</b> Both act on the value you last \
+clicked, and in a window you have only just opened that is nothing at all. \
+Click a value first - a single click selects nothing and copies nothing, it \
+only decides what the keys apply to.</li>\
 <li><b>A dragged selection stops at the end of a value.</b> Expected. Each \
 reading is its own piece of text - which is what lets each one carry its own \
 info button - and Qt shares a selection only inside one piece. Ctrl+Shift+C \

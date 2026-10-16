@@ -14,7 +14,13 @@ import QtQuick
 // text, which worked around the same stolen-drag problem from the other
 // side - at the cost of making a partial selection impossible, since the
 // press that started one also replaced it with the whole block. Selecting
-// everything is still a gesture: Ctrl+A, or triple-click.
+// everything is still a gesture: Ctrl+A, or triple-click where the text sees
+// the press itself.
+//
+// That Ctrl+A is a window shortcut in Main.qml, not this TextEdit's own key
+// handling. It is read-only, which leaves selectByKeyboard false, and in that
+// state the key never arrived - so this line described a gesture that did
+// nothing for as long as it has been here.
 TextEdit {
     id: root
 
