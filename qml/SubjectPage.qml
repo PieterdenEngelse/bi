@@ -26,6 +26,99 @@ Item {
         "rust": "Rust"
     })
 
+    // The page heading explains the page. Each subject answers a different
+    // question, and which question it is turns out to be the thing people get
+    // wrong - "Qt" reads as "is Qt installed" until you are told otherwise.
+    readonly property var subjectWhat: ({
+        "nixos": "The health of this machine right now: free space on the \
+store's filesystem, memory and stall pressure, systemd units that failed in \
+either scope, and the generations you could roll back to.",
+        "qt": "Whether Qt software would BUILD here, which Qt an installed Qt \
+program actually runs, and whether the WebAssembly build of this same \
+interface is current. Three different questions that are easy to conflate.",
+        "rust": "Whether a Rust build would work in this environment - the \
+toolchain, and which compilation targets have a standard library - and \
+whether what is deployed was built from the source now on disk."
+    })
+    readonly property var subjectWhy: ({
+        "nixos": "These are the readings that decide whether to act, and the \
+ones with a repair worth offering. Suggested actions below are the repairs.",
+        "qt": "On NixOS, <i>installed</i> and <i>usable for a build</i> come \
+apart. Qt is split across store paths, so a prefix can be present, correct, \
+and still missing the host tools a QML build needs - and the failure arrives \
+late, naming a tool rather than the prefix that lacks it.",
+        "rust": "A missing target standard library and a missing linker both \
+fail at the END of a build, with an error naming a crate or a symbol rather \
+than the thing that is actually absent. Reading it here costs seconds; \
+discovering it at link time costs a build."
+    })
+    readonly property var subjectIfWrong: ({
+        "nixos": "A panel reading <b>unknown</b> means the measurement could \
+not be taken, which is not the same as nothing being wrong - it is the app \
+declining to reassure you about something it never checked.",
+        "qt": "<b>No qmake on PATH is not an error.</b> qmake is a \
+development tool and on NixOS normally exists only inside a devShell, so a \
+perfectly healthy machine reads unknown here.",
+        "rust": "<b>Stale is not broken.</b> It means the running build \
+predates the source on disk, which is the usual reason a change you made \
+appears to have done nothing."
+    })
+
+    // Same tab on all three subjects, because the answer is the same.
+    //
+    // It names the engine, which the info-panel voice in CLAUDE.md otherwise
+    // forbids - panels are written as though there is only "the app". The
+    // exception is deliberate and narrow: this project exists to make the
+    // invisible visible, and here the internal structure IS the subject. The
+    // rest of the panels still say "the app's background service".
+    readonly property var pageSections: [{
+        title: "engine",
+        body: "Everything on this page was measured somewhere else. \
+<b>nixdash is two programs</b>: this window, and a Rust program called the \
+<b>engine</b> that runs as a background service and answers over HTTP on \
+<tt>127.0.0.1:3100</tt>. The window polls it every two seconds and draws \
+whatever comes back.<br><br>\
+<b>Why it is separate.</b> Not layering for its own sake. There are two \
+interfaces - this desktop one and a WebAssembly one that runs in a browser - \
+compiled from a single <tt>qml/</tt> directory. If each worked out for itself \
+whether 46% disk use was worth a warning, the two could disagree about the \
+same machine. Putting the measuring <i>and the judging</i> in one place makes \
+that impossible rather than merely unlikely."
+    }, {
+        title: "what it decides",
+        body: "More than you might expect:<br>\
+<ul>\
+<li><b>The readings</b> - <tt>/proc</tt>, <tt>systemctl</tt>, the profile \
+directory, <tt>statvfs</tt>, <tt>qmake -query</tt>, <tt>rustc</tt>. Each \
+panel is sampled on its own schedule, chosen against what the measurement \
+costs: memory every 2 seconds, <tt>qmake</tt> every 60.</li>\
+<li><b>The severity and the one-line headline</b> - the coloured dot and the \
+sentence beside each title are its verdict, not this window's.</li>\
+<li><b>These explanations.</b> The text you are reading is written next to \
+the code that produces the number, by whoever knows why it is computed that \
+way.</li>\
+<li><b>What a Run button runs.</b> Pressing one sends an action's \
+<i>name</i> and nothing else - never a command - so the set of programs that \
+can be started is fixed when the app is built.</li>\
+</ul>\
+<b>And what it deliberately is not.</b> No database: history lives in memory \
+and is lost when it restarts. No privilege of its own - anything needing root \
+goes through a polkit prompt you answer, and that prompt is the \
+authorisation. One generated file it ever writes. Nothing leaves the machine, \
+and the loopback address is compiled in rather than configured."
+    }, {
+        title: "what catches people out",
+        body: "<b>Its environment is not your shell.</b> The background \
+service has its own <tt>PATH</tt>. That is why the Qt page can honestly \
+report no qmake while you are sitting in a devShell that has one - entering \
+that shell changes nothing about what these panels say, and that is a real \
+limitation rather than a bug.<br><br>\
+<b>Rebuilding is not restarting.</b> A changed file produces a new build, but \
+the service keeps serving the old one until it is restarted - which is the \
+usual reason a change appears to have had no effect. The Rust page's \
+build-freshness panel exists to make exactly that visible."
+    }]
+
     ScrollView {
         id: scroller
         anchors.fill: parent
@@ -48,10 +141,29 @@ Item {
                 width: parent.width
                 spacing: 12
 
-                SelectableText {
-                    text: root.titles[root.subject] || root.subject
-                    font.bold: true
-                    font.pixelSize: 18
+                // The heading, and the only explanation of the page as a
+                // whole - every other info button on it belongs to one panel
+                // or one reading.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    SelectableText {
+                        text: root.titles[root.subject] || root.subject
+                        font.bold: true
+                        font.pixelSize: 18
+                    }
+
+                    InfoButton {
+                        Layout.alignment: Qt.AlignVCenter
+                        title: root.titles[root.subject] || root.subject
+                        what: root.subjectWhat[root.subject] || ""
+                        why: root.subjectWhy[root.subject] || ""
+                        ifWrong: root.subjectIfWrong[root.subject] || ""
+                        sections: root.pageSections
+                    }
+
+                    Item { Layout.fillWidth: true }
                 }
 
                 GridLayout {
