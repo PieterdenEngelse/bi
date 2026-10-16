@@ -95,7 +95,36 @@ Item {
                         { label: "Current generation", value: root.val("generations", "current"),
                           source: "/etc/nixos/configuration.nix → nixos-rebuild switch" },
                         { label: "Reboot pending", value: root.val("generations", "reboot_needed"),
-                          source: "/run/booted-system vs /run/current-system" },
+                          source: "/run/booted-system vs /run/current-system",
+                          what: "Whether the system you BOOTED is still the \
+system that is currently ACTIVE. The two paths below are the comparison: \
+<tt>/run/booted-system</tt> is written once at boot and never changes while \
+the machine is up; <tt>/run/current-system</tt> is repointed by every \
+<tt>nixos-rebuild switch</tt>. Yes here means they differ.",
+                          why: "A switch applies most of a new generation \
+immediately - services restart, <tt>/etc</tt> is regenerated, your packages \
+and <tt>PATH</tt> change - without a reboot. What it cannot replace under a \
+running system is whatever was chosen at boot: the <b>kernel</b>, the \
+<b>initrd</b>, loaded modules and microcode. So after a switch you are \
+running new userspace on the old kernel, and nothing on screen says so \
+unless something like this row does.",
+                          ifWrong: "<b>Yes is not an error</b>, and usually \
+nothing breaks - the old kernel keeps running fine. The case that bites is a \
+kernel upgrade: modules for the NEW kernel are in the store while the OLD \
+one is running, so loading a module that was not already loaded can fail \
+with a version mismatch. Reboot when convenient.<br><br>\
+Note this is a different fact from the generation number above it. That can \
+advance while this stays <tt>no</tt> - rolling back to the generation you \
+happen to be booted into changes one and not the other.",
+                          sections: [{ title: "why whole paths are compared",
+                          body: "The check compares the two symlinks as \
+complete store paths, not just their kernels. That is deliberately \
+conservative: a closure differing by a single package still means the system \
+you booted is not the system now active, and calling that 'no reboot needed' \
+would be a reassurance the measurement does not support.<br><br>\
+The cost is that a switch which changed nothing bootable still reports yes. \
+That is the right way round - the alternative is staying quiet about a \
+kernel change." }] },
                         { label: "Store filesystem", value: root.val("disk", "path"),
                           source: "hardware-configuration.nix" }
                     ]

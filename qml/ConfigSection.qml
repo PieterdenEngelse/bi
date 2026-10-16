@@ -37,8 +37,52 @@ Rectangle {
     id: root
 
     property string title: ""
-    /// [{ label, value, source }]
+    /// [{ label, value, source }], plus optional what/why/ifWrong/sections -
+    /// a row carrying any of those grows an info button, and one carrying
+    /// none does not (InfoButton hides itself when it has nothing to say).
     property var rows: []
+
+    /// Reserved for the button column, so no text runs under it.
+    readonly property int infoWidth: style.infoSize + 8
+
+    /// Which paragraph of the document each row's first line is.
+    ///
+    /// Not the row index: paragraph 0 is the title, and a row with a
+    /// provenance pointer occupies two paragraphs rather than one.
+    readonly property var rowParagraph: {
+        var out = []
+        var p = 1
+        for (var i = 0; i < root.rows.length; i++) {
+            out.push(p)
+            // value, its provenance if any, and the blank line that follows
+            // every row but the last - all of which shift the next row down.
+            p += 1
+            if (root.rows[i].source)
+                p += 1
+            if (i < root.rows.length - 1)
+                p += 1
+        }
+        return out
+    }
+
+    /// Document position where each paragraph begins, read back from the
+    /// document rather than predicted from label and value lengths - the
+    /// same lesson StatBlock.qml records at length: during a rebuild the
+    /// prediction is asked of the previous, shorter document and Qt answers
+    /// with a wall of "QTextCursor::setPosition: Position N out of range".
+    readonly property var offsets: {
+        var len = body.length
+        var dependency = body.text   // re-run on markup change, not just length
+        var plain = len > 0 ? body.getText(0, len) : ""
+        var out = []
+        var pos = 0
+        var parts = plain.split("\u2029")
+        for (var i = 0; i < parts.length; i++) {
+            out.push(pos)
+            pos += parts[i].length + 1
+        }
+        return out
+    }
 
     implicitHeight: col.implicitHeight + 24
     radius: 8
@@ -86,6 +130,11 @@ Rectangle {
                 h += "<div>" + root.pad(root.labelWidth)
                    + "<span style='color:" + style.textMuted + "'>&#8627; "
                    + body.esc(r.source) + "</span></div>"
+            // A blank line between items, so a row and its provenance read as
+            // one thing rather than the list reading as one block. Not after
+            // the last: that would be padding inside the tile's own margin.
+            if (i < root.rows.length - 1)
+                h += "<div>&nbsp;</div>"
         }
         return h
     }
@@ -128,7 +177,7 @@ Rectangle {
         // proportional font makes &nbsp; padding line up to nothing.
         SelectableText {
             id: body
-            width: parent.width
+            width: parent.width - root.infoWidth
             text: root.rowsHtml()
             textFormat: TextEdit.RichText
             font.family: "monospace"
@@ -140,6 +189,37 @@ Rectangle {
             // Word boundaries first, mid-word only when a run has none -
             // which is every store path.
             wrapMode: TextEdit.Wrap
+        }
+    }
+
+    // One per row that has something to explain, anchored to the row's own
+    // line in the document. A sibling of the Column rather than a child of
+    // it: the Column stacks its children, and these have to sit beside the
+    // text rather than under it.
+    Repeater {
+        model: root.rows
+
+        InfoButton {
+            x: root.width - col.x - width
+            // body.text and body.length are read explicitly so this re-runs
+            // when the block relays out - a binding over a function call
+            // alone does not notice that the rows moved. A row whose
+            // paragraph does not exist yet parks on an estimated pitch
+            // instead of asking the document for a position it does not have.
+            y: {
+                var dependency = body.text
+                var len = body.length
+                var o = root.offsets[root.rowParagraph[index]]
+                if (o === undefined || o > len)
+                    return col.y + index * 20
+                var r = body.positionToRectangle(o)
+                return col.y + r.y + Math.max(0, (r.height - height) / 2)
+            }
+            title: modelData.label
+            what: modelData.what ? modelData.what : ""
+            why: modelData.why ? modelData.why : ""
+            ifWrong: modelData.ifWrong ? modelData.ifWrong : ""
+            sections: modelData.sections ? modelData.sections : []
         }
     }
 }
