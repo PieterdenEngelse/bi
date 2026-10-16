@@ -63,8 +63,8 @@
         "nixpkgs-emscripten": "nixpkgs-emscripten"
       },
       "locked": {
-        "lastModified": 1791434034,
-        "narHash": "sha256-F8376V+i6ELwi6NkvaY9bYYWOB+XzH329+yLqUglnjA=",
+        "lastModified": 1791557064,
+        "narHash": "sha256-wXlbMdG/buvzNH7HYzAt+gIpM1bQ5ZC0RMMhPNE46Xk=",
         "path": "/home/pde/Projects/qt6-wasm",
         "type": "path"
       },

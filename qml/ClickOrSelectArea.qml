@@ -21,7 +21,8 @@ MouseArea {
     id: root
 
     /// The text whose selection this drives. A TextEdit-alike: it needs
-    /// positionAt(), moveCursorSelection(), cursorPosition and deselect().
+    /// positionAt(), moveCursorSelection(), cursorPosition, deselect(), and
+    /// - for copy-on-select below - selectedText and copy().
     /// Typed `var` so those lookups are not checked against plain Item.
     property var textItem: null
 
@@ -68,6 +69,20 @@ MouseArea {
             return
         root.dragging = true
         root.textItem.moveCursorSelection(root.positionIn(m.x, m.y))
+    }
+
+    // A drag that selected something is final on release, so that is where
+    // it goes on the clipboard. The text item cannot do this for itself here:
+    // it never sees the press, so its own mouse handling never runs - which
+    // is also why these readings fill no primary selection.
+    //
+    // Guarded on a non-empty selection, so the click path below cannot wipe
+    // the clipboard. copy() is TextEdit's own and works on a read-only one.
+    onReleased: {
+        if (root.dragging
+            && root.textItem
+            && root.textItem.selectedText.length > 0)
+            root.textItem.copy()
     }
 
     // Decided on release, not on movement: a drag that selected nothing was

@@ -88,6 +88,36 @@ ApplicationWindow {
         onActivated: root.visibility = Window.Maximized
     }
 
+    // Ctrl+C copies the current selection, explicitly rather than by leaving
+    // it to the focused item's own key handling. Every value here is a
+    // READ-ONLY TextEdit, which leaves selectByKeyboard false - and in that
+    // state Ctrl+C was reported doing nothing at all.
+    //
+    // One Shortcut for the whole window, not one per panel: two enabled
+    // shortcuts on the same sequence are ambiguous and then NEITHER fires,
+    // which is the same trap that makes Ctrl+Shift+C scope itself to the
+    // pointer instead.
+    //
+    // Reads the focused item's live selection rather than a remembered
+    // string, so it copies what is selected now - and an editable field, like
+    // the port spinner, keeps working the way its own Ctrl+C would.
+    //
+    // qmllint reports selectedText and copy as missing from QQuickItem, which
+    // is what activeFocusItem is typed as. That is the point of a probe, the
+    // same way SelectableText walks for a Flickable: QML resolves both at
+    // runtime, a text item answers and anything else does not. Do not "fix"
+    // these two warnings by removing the guards - they are the guards.
+    Shortcut {
+        sequences: [ "Ctrl+C" ]
+        onActivated: {
+            var it = root.activeFocusItem
+            if (it && it.selectedText !== undefined
+                && it.selectedText.length > 0
+                && typeof it.copy === "function")
+                it.copy()
+        }
+    }
+
     // Rust supplies the engine's address; see ui/src/cxxqt_object.rs.
     Dash { id: dash }
 
@@ -190,10 +220,13 @@ ApplicationWindow {
 <b>F11</b> switches to true fullscreen - no title bar, covering the panel - \
 and F11 or <b>Escape</b> comes back. Closing the window does not stop \
 monitoring.<br><br>\
-Every value in this window is <b>selectable</b>, and selecting is already \
-copying: the dragged text goes onto the X11 primary selection, so a \
-<b>middle-click</b> pastes it straight into a terminal or an editor. \
-<tt>Ctrl+C</tt> puts it on the ordinary clipboard as well.<br><br>\
+Every value in this window is <b>selectable</b>, and selecting <b>copies</b>: \
+letting go of a drag puts that text on the clipboard, so <tt>Ctrl+V</tt> \
+pastes it anywhere. <tt>Ctrl+C</tt> copies the selection again if you would \
+rather use the keystroke. A click selects nothing and deliberately leaves the \
+clipboard alone, so reading a value by tapping it cannot cost you what you \
+had copied. On this desktop a <i>dragged</i> value also lands on the X11 \
+primary selection, so a <b>middle-click</b> pastes it without either.<br><br>\
 A selection cannot cross from one value into the next, so for a whole panel \
 at once, point at it and press <b>Ctrl+Shift+C</b> - that copies the pane \
 under the pointer as tab-separated text."
@@ -203,6 +236,11 @@ the view. Maximised rather than fullscreen by default because fullscreen \
 hides the title bar, leaving no visible way to close or move the window - a \
 poor default for something you open to glance at."
                 ifWrong: "<ul>\
+<li><b>Something you copied here vanished.</b> On this desktop the clipboard \
+is held by the program that filled it, and nothing is running to outlive it - \
+no clipboard manager. Closing this window therefore empties whatever you \
+copied from it, with no error anywhere. Paste it before you close the window; \
+the primary selection goes the same way for the same reason.</li>\
 <li><b>Ctrl+Shift+C did nothing.</b> The pointer was not over a panel. It \
 copies the pane you are pointing at, so there is no ambiguity about which \
 one you meant.</li>\

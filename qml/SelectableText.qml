@@ -20,17 +20,38 @@ TextEdit {
 
     readOnly: true
     selectByMouse: true
-    // Selecting is already copying on this desktop: Qt puts the dragged text
-    // on the X11 primary selection, so a middle-click pastes it without
-    // Ctrl+C. Verified against the running window - the disk panel's "free"
-    // row turned up in PRIMARY after a drag, with the clipboard still empty.
-    // Nothing here implements it, and nothing should: writing selections to
-    // the ordinary clipboard instead would wipe whatever you had copied every
-    // time you dragged across a value to read it.
+
+    // Selecting copies, to BOTH selections.
+    //
+    // Qt fills the X11 primary selection from its own mouse handling, so a
+    // middle-click has always pasted a dragged value. The ordinary clipboard -
+    // the one Ctrl+V and every other application's paste reads - is filled
+    // here, on release.
+    //
+    // This reverses an earlier decision to leave the clipboard alone, whose
+    // argument was that dragging across a value merely to READ it should not
+    // wipe what you had copied. That cost is real and was accepted
+    // deliberately: copy-on-select is the wanted behaviour. The guard in
+    // copySelection() limits the cost to drags - a click selects nothing and
+    // leaves the clipboard untouched.
+    //
     // TextEdit defaults its colour to BLACK, not to the palette - a Label
     // converted to one without setting `color` goes invisible on this dark
     // scheme. Default to the palette and let call sites override.
     color: palette.text
+
+    /// Puts the current selection on the ordinary clipboard.
+    ///
+    /// `copy()` works on a read-only TextEdit - Clipboard.qml is built on
+    /// exactly that trick - so this needs neither selectByKeyboard nor the
+    /// blinking cursor it would put in every value tile.
+    ///
+    /// Guarded on a non-empty selection, so a plain click never clears what
+    /// you had copied.
+    function copySelection() {
+        if (root.selectedText.length > 0)
+            root.copy()
+    }
 
     /// Escapes engine-supplied text for use inside a RichText body. Values
     /// land inside markup, so they are escaped rather than trusted: a target
@@ -79,8 +100,15 @@ TextEdit {
         // Found with an offscreen qmltestrunner harness after three wrong
         // theories; the margin is not worth a fourth.
         onActiveChanged: {
-            if (press.active && root.scroller === null)
-                root.scroller = root.findScroller()
+            if (press.active) {
+                if (root.scroller === null)
+                    root.scroller = root.findScroller()
+            } else {
+                // Released: the selection is whatever it ended up being, so
+                // copy it. On release rather than on selectedTextChanged,
+                // which fires on every pixel of a drag.
+                root.copySelection()
+            }
         }
     }
 
