@@ -108,20 +108,34 @@ impl ActionProvider for RustTargets {
         if !has_em {
             out.push(Action {
                 id: "rust-emscripten-target".into(),
-                title: "No wasm32-unknown-emscripten target".into(),
+                title: "No Emscripten target in the rustc on PATH".into(),
                 subject: Subject::Rust,
                 kind: ActionKind::Nix,
+                // Scoped to the rustc that was actually looked at. This said
+                // "a Qt for WebAssembly build cannot compile", which is a
+                // claim about every environment on the machine from a probe
+                // of exactly one - and it was wrong here, where the browser
+                // UI builds in a dev shell carrying its own toolchain.
                 why: format!(
-                    "rustc {version} has no Emscripten target std, so a Qt \
-                     for WebAssembly build cannot compile."
+                    "The rustc on PATH is {version}, which ships std for the \
+                     host only - it has no wasm32-unknown-emscripten. A Qt \
+                     for WebAssembly build started from this environment \
+                     would fail with \"can't find crate for `std`\"."
                 ),
                 info: ActionInfo {
                     what: "Adds a fenix toolchain carrying the Emscripten \
                            target's standard library to the dev shell.",
-                    if_wrong: "Only needed if you are building for Qt \
-                               WebAssembly. Plain browser wasm uses \
-                               wasm32-unknown-unknown, which nixpkgs already \
-                               ships - that one needs lld instead.",
+                    if_wrong: "A dev shell that brings its own Rust \
+                               toolchain is a different environment and is \
+                               not what was measured here, so this can be \
+                               true while that build works perfectly - \
+                               nixdash's own browser UI is built that way, \
+                               in `nix develop .#wasm`, which already \
+                               supplies this target. Only needed if you are \
+                               building for Qt WebAssembly at all: plain \
+                               browser wasm uses wasm32-unknown-unknown, \
+                               which nixpkgs already ships - that one needs \
+                               lld instead.",
                 },
                 command: FENIX_SNIPPET.into(),
                 run: None, // Nix snippet - paste and rebuild, nothing to execute.

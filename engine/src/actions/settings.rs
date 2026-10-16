@@ -118,6 +118,12 @@ impl ActionProvider for UnappliedSettings {
             }),
             effects: vec![
                 "Rebuilds everything home-manager manages, not just nixdash".into(),
+                // The cost was missing while the wasm rebuild beside it says
+                // "takes several minutes" - and this one is the more
+                // expensive of the two. Any edit in the tree makes a new
+                // store path, because the package takes the whole tree as
+                // its source.
+                "Takes minutes if the nixdash tree changed - any edit rebuilds it".into(),
                 "The engine keeps running the old settings until restarted".into(),
                 "The previous generation stays available".into(),
             ],
