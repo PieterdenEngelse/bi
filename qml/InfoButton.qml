@@ -155,10 +155,16 @@ Item {
         /// is the part that makes it worth a line of comment. The literal is
         /// Style.qml's floor; the call site passes the real one.
         property int bodyFont: 13
+        /// The height this tab needs to show everything at once, so the
+        /// panel can size itself to its tallest tab instead of scrolling.
+        /// Safe to read from a binding: it depends on the text and the
+        /// available WIDTH, never on the height it is being used to compute.
+        readonly property int naturalHeight: proseText.implicitHeight
         clip: true
         contentWidth: availableWidth
 
         SelectableText {
+            id: proseText
             width: prose.availableWidth
             text: prose.body
             font.pixelSize: prose.bodyFont
@@ -204,12 +210,40 @@ Item {
             id: contentColumn
             spacing: 10
 
-            // Enough for the content when it is short, capped by the Popup
-            // when it is not - so a one-line panel is not a half-screen box.
-            readonly property int wanted:
-                root.sections.length > 0 ? 560
-              : (root.what.length + root.why.length + root.ifWrong.length) > 700
-                ? 520 : 360
+            // Sized to the TALLEST tab, so switching tabs never resizes the
+            // panel and no tab has to scroll while the screen still has room.
+            //
+            // This was a flat 560 whenever there were sections, which is why
+            // long tabs scrolled even on a 1245px-high window with 1165
+            // available: the cap had nothing to do with the content. The
+            // Popup's own `Math.min(..., parent.height - 80)` is the real
+            // limit, and prose longer than a screenful still scrolls - which
+            // is the point at which the header's advice applies and the
+            // section should be split instead.
+            //
+            // StackLayout instantiates every tab, not just the visible one,
+            // so all of their heights are known up front. Reading them in a
+            // binding is loop-free: a tab's implicitHeight follows from its
+            // text and the panel's fixed WIDTH, never from the height being
+            // computed here.
+            readonly property int tallest: {
+                var h = overviewColumn.implicitHeight
+                for (var i = 0; i < stack.children.length; i++) {
+                    var c = stack.children[i]
+                    if (c.naturalHeight !== undefined)
+                        h = Math.max(h, c.naturalHeight)
+                }
+                return h
+            }
+            // Title, tab bar, Close, three row spacings, the Popup's own
+            // padding - and the ScrollView's, which is NOT in the text's
+            // implicitHeight and cost a clipped final line at the first
+            // attempt. Measured against the longest tab in the app rather
+            // than derived, so treat it as slack: too much shows as a little
+            // space under short prose, too little eats a line.
+            readonly property int chrome: bar.visible ? 152 : 128
+            readonly property int wanted: contentColumn.tallest
+                                        + contentColumn.chrome
 
             SelectableText {
                 Layout.fillWidth: true
@@ -233,6 +267,7 @@ Item {
             }
 
             StackLayout {
+                id: stack
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 currentIndex: bar.visible ? bar.currentIndex : 0
@@ -244,6 +279,7 @@ Item {
                     contentWidth: availableWidth
 
                     Column {
+                        id: overviewColumn
                         width: overview.availableWidth
                         spacing: 12
 
