@@ -20,9 +20,14 @@ use crate::collector::{Collector, Info, PanelMeta, StatInfo, Status, Subject};
 /// exists, answering requests perfectly. Nothing looks wrong.
 ///
 /// Store mtimes are all normalised to 1970, so comparing file timestamps is
-/// useless here. What works is comparing the *running process's start time*
-/// against the newest source file: if you edited after it started, it cannot
-/// contain that edit.
+/// useless here. What works is a build timestamp baked in at compile time,
+/// compared against the newest engine source file: if a file was edited after
+/// this binary was built, the binary cannot contain that edit.
+///
+/// The process's *start time* was used for this and was wrong, in a way that
+/// only ever failed towards reassurance: restarting a binary does not rebuild
+/// it, so a restart made any build, however old, look current. The restart
+/// after a switch is exactly when that mattered.
 pub struct RustBuildCollector;
 
 fn project_dir() -> Option<PathBuf> {
@@ -37,6 +42,33 @@ fn project_dir() -> Option<PathBuf> {
 
 fn secs(t: std::time::SystemTime) -> Option<u64> {
     t.duration_since(UNIX_EPOCH).ok().map(|d| d.as_secs())
+}
+
+/// When the running binary was compiled, baked in by `build.rs`.
+///
+/// The fact the filesystem cannot supply: a store path's mtime is 1970 by
+/// design, and `target/debug`'s mtime is the link time of a binary that may
+/// have been relinked without its build script re-running.
+const BUILT: &str = env!("NIXDASH_BUILT");
+
+/// `BUILT` as Unix seconds, for comparing against a file mtime.
+fn built_at() -> Option<u64> {
+    env!("NIXDASH_BUILT_AT").parse().ok()
+}
+
+/// Was this binary compiled before the newest source file was edited?
+///
+/// Pulled out of `sample` so the comparison can be tested with injected
+/// times: the one thing it must not depend on is when the process started,
+/// and that is not something the real environment can be made to vary.
+///
+/// Either input missing means *unknowable*, which is reported as not stale
+/// here and turned into `Unknown` by `status` - never into "current".
+fn staleness(built_at: Option<u64>, newest_source_at: Option<u64>) -> (bool, Option<u64>) {
+    match (built_at, newest_source_at) {
+        (Some(built), Some(src)) if src > built => (true, Some(src - built)),
+        _ => (false, None),
+    }
 }
 
 /// When this process started.
@@ -91,10 +123,15 @@ struct BuildReading {
     /// True when that path is in the Nix store - a deployed build rather than
     /// a `cargo run` from the working tree.
     deployed: bool,
+    /// When this binary was compiled, as a string to show someone.
+    built: &'static str,
+    /// The same moment in Unix seconds - the half of the comparison that the
+    /// running process's start time used to stand in for.
+    built_at: Option<u64>,
     started_at: Option<u64>,
     newest_source_at: Option<u64>,
     newest_source_file: Option<String>,
-    /// Source edited after the running process started.
+    /// Engine source edited after this binary was built.
     stale: bool,
     stale_by_secs: Option<u64>,
 }
@@ -108,10 +145,10 @@ impl Collector for RustBuildCollector {
             interval_secs: 30,
             subject: Subject::Rust,
             info: Info {
-                what: "Compares the running engine's start time against the \
-                       newest .rs file in the project. If you edited source \
-                       after this process started, it cannot contain that \
-                       edit.",
+                what: "Compares when the running binary was COMPILED against \
+                       the newest .rs file under engine/. If a file was \
+                       edited after this binary was built, the binary cannot \
+                       contain that edit.",
                 why: "A rebuild makes a new store path and rewrites the unit, \
                       but user services are not restarted automatically on \
                       this machine - startServices is set to 'suggest', \
@@ -120,51 +157,65 @@ impl Collector for RustBuildCollector {
                       answering perfectly. Nothing looks wrong, and you debug \
                       a change that was never loaded.",
                 if_wrong: "Stale means: run home-manager switch, then the \
-                           restart it prints. Timestamps cannot be used \
-                           instead of start time here - every mtime in the \
-                           Nix store is normalised to 1970, so comparing the \
-                           binary's file date against source would make \
-                           everything look permanently stale.",
+                           restart it prints. The build date is baked in at \
+                           compile time rather than read off the file, \
+                           because every mtime in the Nix store is \
+                           normalised to 1970 - the binary's file date would \
+                           make everything look permanently stale. The \
+                           process's start time cannot stand in for it \
+                           either: restarting does not rebuild, so a restart \
+                           would make any build look current, which is this \
+                           panel's whole subject.",
+                sections: &[],
             },
             stats: vec![
                 StatInfo {
                     key: "stale",
                     info: Info {
-                        what: "True when a source file is newer than the \
-                               moment this process started.",
-                        why: "The only reliable comparison available. Store \
-                              paths carry no useful mtime, and the engine \
-                              cannot know which commit it was built from \
-                              without embedding one.",
+                        what: "True when a file under engine/ is newer than \
+                               the moment this binary was compiled.",
+                        why: "Store paths carry no useful mtime, so the \
+                              build moment is embedded at compile time. That \
+                              is what makes this survive a restart: \
+                              restarting changes when the process began, not \
+                              what is in it.",
                         if_wrong: "A false positive is possible if you touch \
                                    a file without changing it - git checkout \
                                    does this. Harmless: a restart costs \
                                    seconds and history is in memory only.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
                     key: "stale_by_secs",
                     info: Info {
-                        what: "How long ago the newest source edit was, \
-                               relative to this process starting.",
+                        what: "How long after this binary was compiled the \
+                               newest source edit happened.",
                         why: "Distinguishes 'just saved a file' from 'this \
                               has been running against old code all \
                               afternoon'.",
                         if_wrong: "Null when current, or when either \
                                    timestamp could not be read.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
                     key: "newest_source_file",
                     info: Info {
-                        what: "Most recently modified .rs file, relative to \
-                               the project root.",
+                        what: "Most recently modified .rs file under \
+                               engine/, shown relative to the project root.",
                         why: "Says which change is not loaded, which is the \
                               difference between a warning and something \
                               actionable.",
-                        if_wrong: "target/ and .git are skipped deliberately; \
-                                   build output is not source and scanning it \
-                                   would be slow and always newest.",
+                        if_wrong: "Only engine/ is scanned, because only \
+                                   those files end up in this binary - a QML \
+                                   or UI edit is not this panel's business \
+                                   and reporting it here would be a false \
+                                   alarm that never clears. target/ and .git \
+                                   are skipped too: build output is not \
+                                   source and scanning it would be slow and \
+                                   always newest.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -180,6 +231,7 @@ impl Collector for RustBuildCollector {
                         if_wrong: "False while you are iterating with cargo \
                                    run - staleness still reports honestly, it \
                                    just matters less.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -195,6 +247,39 @@ impl Collector for RustBuildCollector {
                                    show nixdash-engine -p ExecStart`, the \
                                    unit was updated and the process was never \
                                    restarted.",
+                        sections: &[],
+                    },
+                },
+                StatInfo {
+                    key: "built",
+                    info: Info {
+                        what: "When the running binary was compiled, in \
+                               local time.",
+                        why: "The one identifier that tells two builds \
+                              apart here. The version number is 0.1.0 in \
+                              every build ever made, so it cannot; a store \
+                              hash changes but means nothing to read.",
+                        if_wrong: "A date older than your last rebuild means \
+                                   the new build was never started - the old \
+                                   process is still serving, from a store \
+                                   path that still exists.",
+                        sections: &[],
+                    },
+                },
+                StatInfo {
+                    key: "built_at",
+                    info: Info {
+                        what: "The same moment as Unix seconds, which is the \
+                               value actually compared against source.",
+                        why: "Baked in by the build script rather than read \
+                              off the file, because a Nix store path's mtime \
+                              is 1970 by design.",
+                        if_wrong: "Null would mean the build stamp could not \
+                                   be read, and then this panel reports \
+                                   unknown rather than guessing - it cannot \
+                                   compare against a build date it does not \
+                                   have.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -202,11 +287,16 @@ impl Collector for RustBuildCollector {
                     info: Info {
                         what: "When this process started, from the mtime of \
                                /proc/self.",
-                        why: "Used instead of the binary's own timestamp, \
-                              which in the Nix store is always 1970.",
-                        if_wrong: "A value far in the past with a recent \
-                                   deploy is exactly the stale case this \
-                                   panel exists for.",
+                        why: "Shown, but deliberately NOT compared against \
+                              anything. It answers how long this has been up, \
+                              which is a different question from what is in \
+                              it - and conflating the two is what made this \
+                              panel call a year-old build current the moment \
+                              it was restarted.",
+                        if_wrong: "A start time much later than the build \
+                                   date is normal and means nothing is \
+                                   wrong; it just means you restarted.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -216,6 +306,7 @@ impl Collector for RustBuildCollector {
                         why: "The other half of the comparison.",
                         if_wrong: "Null means the project directory could not \
                                    be scanned.",
+                        sections: &[],
                     },
                 },
                 StatInfo {
@@ -227,6 +318,7 @@ impl Collector for RustBuildCollector {
                                    this panel can say nothing - which it \
                                    reports as unknown rather than as \
                                    'current'.",
+                        sections: &[],
                     },
                 },
             ],
@@ -241,12 +333,15 @@ impl Collector for RustBuildCollector {
             .as_deref()
             .is_some_and(|p| p.starts_with("/nix/store/"));
         let started_at = process_started_at();
+        let built_at = built_at();
 
         let Some(dir) = project_dir() else {
             return Ok(serde_json::to_value(BuildReading {
                 project_dir: None,
                 running_exe,
                 deployed,
+                built: BUILT,
+                built_at,
                 started_at,
                 newest_source_at: None,
                 newest_source_file: None,
@@ -255,20 +350,25 @@ impl Collector for RustBuildCollector {
             })?);
         };
 
+        // Only the engine crate: those are the files that go into this
+        // binary, and they are also exactly the set Cargo watches to decide
+        // whether to re-run the build script that stamped it. Scanning the
+        // whole tree would report a QML or UI edit - which cannot change this
+        // binary - as the engine being out of date, and with a baked stamp
+        // that false alarm would never clear.
         let mut best = None;
-        newest_source(&dir, &dir, &mut best);
+        newest_source(&dir, &dir.join("engine"), &mut best);
         let newest_source_at = best.as_ref().map(|(t, _)| *t);
         let newest_source_file = best.as_ref().map(|(_, f)| f.clone());
 
-        let (stale, stale_by_secs) = match (started_at, newest_source_at) {
-            (Some(start), Some(src)) if src > start => (true, Some(src - start)),
-            _ => (false, None),
-        };
+        let (stale, stale_by_secs) = staleness(built_at, newest_source_at);
 
         Ok(serde_json::to_value(BuildReading {
             project_dir: Some(dir.display().to_string()),
             running_exe,
             deployed,
+            built: BUILT,
+            built_at,
             started_at,
             newest_source_at,
             newest_source_file,
@@ -281,8 +381,25 @@ impl Collector for RustBuildCollector {
         if v["project_dir"].is_null() {
             return (Status::Unknown, "no source tree to compare against".into());
         }
+        // Both of these are "could not look", and neither is "current".
+        // Reporting ok here would be the panel reassuring you about a
+        // comparison it never made.
+        if v["built_at"].is_null() {
+            return (
+                Status::Unknown,
+                "cannot tell when this build was made".into(),
+            );
+        }
+        if v["newest_source_at"].is_null() {
+            return (
+                Status::Unknown,
+                "no engine source found to compare against".into(),
+            );
+        }
+
         let deployed = v["deployed"].as_bool().unwrap_or(false);
         let kind = if deployed { "deployed" } else { "dev build" };
+        let built = v["built"].as_str().unwrap_or("an unknown date");
 
         if v["stale"].as_bool().unwrap_or(false) {
             let mins = v["stale_by_secs"].as_u64().unwrap_or(0) / 60;
@@ -292,22 +409,116 @@ impl Collector for RustBuildCollector {
             } else {
                 format!("{mins} min")
             };
+            // A restart alone used to be the advice, and it is wrong: the
+            // binary has to be rebuilt before there is anything newer to
+            // restart into.
+            let remedy = if deployed {
+                "switch, then the restart it prints"
+            } else {
+                "rebuild"
+            };
             // Warn, not Bad: the running build is fine, it is simply not the
             // one you just wrote. Nothing is broken until you expect
             // otherwise.
             return (
                 Status::Warn,
-                format!("{kind} predates {file} by {ago} - restart to pick it up"),
+                format!("{kind} from {built} predates {file} by {ago} - {remedy}"),
             );
         }
 
-        (Status::Ok, format!("{kind}, current with source"))
+        (
+            Status::Ok,
+            format!("{kind} from {built}, current with engine source"),
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The bug this panel had: `stale` was computed against the process's
+    /// start time, so restarting a stale binary cleared the warning without
+    /// rebuilding anything - and the restart after a switch is exactly when
+    /// that happened. The comparison must depend on the build and nothing
+    /// else.
+    #[test]
+    fn staleness_compares_the_build_not_the_restart() {
+        let built = 1_000_000;
+        let edited_after = built + 3_600;
+
+        assert_eq!(
+            staleness(Some(built), Some(edited_after)),
+            (true, Some(3_600))
+        );
+        assert_eq!(
+            staleness(Some(edited_after + 1), Some(edited_after)),
+            (false, None)
+        );
+
+        // No restart time appears in the signature at all, which is the
+        // property this test is really pinning: there is nothing a restart
+        // could change.
+        assert_eq!(staleness(None, Some(edited_after)), (false, None));
+        assert_eq!(staleness(Some(built), None), (false, None));
+    }
+
+    /// "Could not look" must not render as "current". Both unknowable cases
+    /// return `stale: false`, so without these guards the headline would have
+    /// claimed currency on a comparison that never happened.
+    #[test]
+    fn an_unmeasurable_comparison_reports_unknown_not_ok() {
+        let base = serde_json::json!({
+            "project_dir": "/home/someone/Projects/nixdash",
+            "deployed": true,
+            "built": "2026-01-01 00:00",
+            "built_at": 1_000_000,
+            "newest_source_at": 999_000,
+            "newest_source_file": "engine/src/main.rs",
+            "stale": false,
+            "stale_by_secs": null,
+        });
+
+        let (status, _) = RustBuildCollector.status(&base);
+        assert_eq!(status, Status::Ok, "a complete reading is comparable");
+
+        let mut no_stamp = base.clone();
+        no_stamp["built_at"] = Value::Null;
+        let (status, headline) = RustBuildCollector.status(&no_stamp);
+        assert_eq!(status, Status::Unknown, "no build stamp: {headline}");
+
+        let mut no_source = base.clone();
+        no_source["newest_source_at"] = Value::Null;
+        let (status, headline) = RustBuildCollector.status(&no_source);
+        assert_eq!(status, Status::Unknown, "no source to compare: {headline}");
+    }
+
+    /// `built_at` is parsed from an env var the build script sets. If that
+    /// ever stops being emitted the panel must report unknown, not ok, so the
+    /// parse is pinned here rather than discovered through a false "current".
+    #[test]
+    fn the_build_stamp_is_present_and_parses() {
+        assert!(
+            built_at().is_some(),
+            "NIXDASH_BUILT_AT did not parse - build.rs is not emitting it"
+        );
+        assert!(!BUILT.is_empty(), "NIXDASH_BUILT is empty");
+    }
+
+    /// Only engine/ is scanned. A UI or QML edit cannot change this binary,
+    /// and with a baked build stamp a false alarm from one would never clear.
+    #[test]
+    fn the_scan_covers_only_the_engine_crate() {
+        let Some(dir) = project_dir() else { return };
+        let mut best = None;
+        newest_source(&dir, &dir.join("engine"), &mut best);
+        if let Some((_, file)) = best {
+            assert!(
+                file.starts_with("engine/"),
+                "scanned outside the engine crate: {file}"
+            );
+        }
+    }
 
     #[test]
     fn process_start_time_is_plausible() {

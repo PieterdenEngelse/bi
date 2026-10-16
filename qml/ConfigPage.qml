@@ -170,8 +170,19 @@ Item {
                         { label: "Running build", value: root.val("rust-build", "deployed") === "yes"
                                                          ? "deployed (store)" : "dev build",
                           source: root.val("rust-build", "running_exe") },
-                        { label: "Current with source", value: root.val("rust-build", "stale") === "yes"
-                                                                ? "no" : "yes",
+                        // Which build is answering. The version number is the
+                        // same in every build ever made, so this is the only
+                        // row that can tell two of them apart.
+                        { label: "Built", value: root.val("rust-build", "built"),
+                          source: "baked in when it was compiled - a store path's own date is 1970" },
+                        // Three states, not two: "—" means the comparison
+                        // could not be made, and showing that as "yes" would
+                        // be the panel reassuring you about something it
+                        // never checked.
+                        { label: "Current with source", value: root.val("rust-build", "stale") === "—"
+                                                                ? "unknown"
+                                                                : root.val("rust-build", "stale") === "yes"
+                                                                  ? "no" : "yes",
                           source: root.val("rust-build", "newest_source_file") }
                     ]
                 }
