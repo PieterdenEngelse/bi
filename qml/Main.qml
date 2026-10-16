@@ -526,13 +526,19 @@ everything here will look untouched." }
             // ClickOrSelectArea's - click opens About, drag selects the
             // version - instead of a MouseArea that would swallow the drag.
             Item {
-                Layout.alignment: Qt.AlignVCenter
+                // Fills the bar rather than hugging the glyphs. The hit area
+                // used to be exactly buildText's bounding box - measured at
+                // 158x14 - leaving a dead band above and below it in a ~36px
+                // toolbar that swallowed a drag with no feedback at all: no
+                // highlight, no About, nothing on the clipboard. The text
+                // still sits where it did; only the target grew.
+                Layout.fillHeight: true
                 Layout.rightMargin: 2
                 implicitWidth: buildText.implicitWidth
-                implicitHeight: buildText.implicitHeight
 
                 SelectableText {
                     id: buildText
+                    anchors.verticalCenter: parent.verticalCenter
                     text: "v" + dash.version + " \u00b7 " + dash.built
                     color: buildArea.hovered ? style.linkHover : style.link
                     font.pixelSize: root.chromeFont

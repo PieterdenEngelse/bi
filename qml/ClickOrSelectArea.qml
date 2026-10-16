@@ -44,9 +44,21 @@ MouseArea {
     preventStealing: true
     cursorShape: Qt.PointingHandCursor
 
+    // Clamped into the text's own box, because the hit area is allowed to be
+    // BIGGER than the glyphs - a one-line value in a toolbar is 14px tall,
+    // which is not a drag target.
+    //
+    // positionAt() does not clamp for you: measured in an offscreen harness,
+    // a press 2px above the text returns a position that selects nothing at
+    // all. Without this, enlarging a hit area is worse than leaving it small
+    // - the press registers, the drag sets `dragging`, the selection stays
+    // empty, and the release then falls through to activated(), so trying to
+    // drag the build stamp would open the About panel every time.
     function positionIn(mx, my) {
         var p = mapToItem(root.textItem, mx, my)
-        return root.textItem.positionAt(p.x, p.y)
+        var x = Math.max(0, Math.min(root.textItem.width - 1, p.x))
+        var y = Math.max(0, Math.min(root.textItem.height - 1, p.y))
+        return root.textItem.positionAt(x, y)
     }
 
     onPressed: (m) => {
