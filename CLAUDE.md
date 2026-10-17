@@ -45,10 +45,27 @@ systemctl --user restart nixdash-engine.service
 
 ## Collaboration Style
 
-- **Check your work, off the user's screen.** Build it, lint it, test it,
-  curl it — the cost of a `cargo build` is yours to spend, not theirs. What
-  is expensive is a `home-manager switch` (~15 min), so do not reach for one
-  to see a change.
+- **Check your work, off the user's screen — but the machine is shared.**
+  Build it, lint it, test it, curl it: that costs the user no attention. It
+  does cost them a laptop with **7 GB of RAM and about 2 free**, where a
+  parallel `cargo` build alongside everything else is what gets things
+  OOM-killed (Chrome's GPU process is the usual casualty). An earlier draft
+  of this line said the cost "is yours to spend, not theirs". That is true of
+  their attention and false of their hardware — there is one machine and both
+  of us are on it.
+
+  So prefer the cheap form:
+
+  | instead of | use | when |
+  |---|---|---|
+  | `cargo build` | `cargo check` | you only need to know it compiles |
+  | `cargo clippy --all-targets` | `cargo clippy -p <crate>` | one crate moved |
+  | the gate after every edit | the gate **once**, before a commit | always |
+
+  A full gate is 1–3 minutes of the machine at full tilt. Running it eight
+  times in a session is not diligence, it is noise with a cost attached.
+  What is genuinely expensive is a `home-manager switch` (~15 min), so never
+  reach for one just to see a change.
 - **Never put the UI on the user's screen.** No launching it into their
   session, no `xdotool`, no `windowactivate`, no screenshots of their
   display. They run it and report what they see. Stealing focus while they
@@ -133,6 +150,43 @@ bundle.
   must pass before a commit
 - **Commits**: conventional form — `type(scope): lowercase description`, e.g.
   `fix(engine): read symlink mtime, not its target`
+
+## The Only Pointing Device Is A Touchpad
+
+**There is no mouse. There has never been a mouse.** The machine has exactly
+one pointer: `ETD2204:00 04F3:31DC Touchpad`. Every gesture this UI asks for
+is performed on a trackpad, and that is not a detail to design around later —
+it is the input model.
+
+What the pad is actually configured as, read from `xinput list-props`:
+
+| setting | value | meaning |
+|---|---|---|
+| Tapping Enabled | 1 (default 0) | tap-to-click, turned on deliberately |
+| Tapping Drag Enabled | 1 | tap-tap-hold to start a drag |
+| Tapping Drag Lock Enabled | 1 (default 0) | a drag survives lifting the finger |
+| Tapping Button Mapping | lrm | **middle click is a THREE-FINGER TAP** |
+
+Three rules follow, and all three have already been violated in this repo:
+
+- **A drag is the most expensive gesture available.** It is tap-tap-hold-move,
+  and a long one — a store path is 70+ characters — runs out of pad and needs
+  drag lock, which is why drag lock is switched on. So a drag may never be the
+  ONLY way to reach something. Anything selectable by dragging must also be
+  reachable by click or Ctrl+A. This is why "Ctrl+A selects the value you
+  clicked" exists; treat it as the primary path and the drag as the refinement.
+
+- **Middle-click paste is not a fallback.** The X11 primary selection is a
+  three-finger tap away. Code comments in `SelectableText.qml` and
+  `StatBlock.qml` have reasoned about primary selection as though it were an
+  equal second route to the clipboard. It is not. The ordinary clipboard is
+  the route; primary selection is a bonus for someone who knows the gesture.
+
+- **Do not shrink a target.** `style.infoSize` is 24px because a fingertip on
+  a trackpad is not a mouse on a desk. The pointer itself is deliberately
+  enlarged for the same reason (see `xfce-appearance.nix`, which says so).
+  Hover-only affordances are equally suspect: hover costs a deliberate park of
+  the cursor here, so nothing may be discoverable by hover alone.
 
 ## Info Buttons
 
