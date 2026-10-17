@@ -153,6 +153,37 @@ ApplicationWindow {
         }
     }
 
+    /// Actions the Dev page owns, by id.
+    ///
+    /// Split by id rather than by subject: `subject` says which of the three
+    /// things an action is ABOUT, which is not the same question as which
+    /// page can act on it. Rebuilding the browser UI and filling in the dev
+    /// shell belong beside the readings they change; a reboot or a garbage
+    /// collection does not, however Rust-flavoured its id looks.
+    ///
+    /// Listed explicitly so a new action shows up on Config by default. The
+    /// wrong page is a nuisance; a new action appearing on NO page would be
+    /// invisible, which is worse.
+    readonly property var devActionIds: [
+        "rebuild-wasm-ui",
+        "rust-emscripten-target",
+        "rust-lld",
+        "rust-src-missing",
+        "qt-merged-prefix"
+    ]
+
+    function devActions() {
+        return root.actions.filter(function(a) {
+            return root.devActionIds.indexOf(a.id) !== -1
+        })
+    }
+
+    function machineActions() {
+        return root.actions.filter(function(a) {
+            return root.devActionIds.indexOf(a.id) === -1
+        })
+    }
+
     // Rust supplies the engine's address; see ui/src/cxxqt_object.rs.
     Dash { id: dash }
 
@@ -337,7 +368,8 @@ browser and contacts that site, like any other link." }
             TabBar {
                 id: tabs
                 Layout.leftMargin: 10
-                currentIndex: root.tab === "monitor" ? 0 : 1
+                currentIndex: root.tab === "monitor" ? 0
+                            : root.tab === "config"  ? 1 : 2
                 // onClicked per button, not onCurrentIndexChanged: clicking
                 // the tab you are already on must still return to its root,
                 // and an index that does not change fires no signal.
@@ -350,6 +382,11 @@ browser and contacts that site, like any other link." }
                     text: "Config"; width: 90
                     font.pixelSize: root.chromeFont
                     onClicked: { root.tab = "config"; root.subject = "" }
+                }
+                TabButton {
+                    text: "Dev"; width: 90
+                    font.pixelSize: root.chromeFont
+                    onClicked: { root.tab = "dev"; root.subject = "" }
                 }
             }
             // Why there are two pages at all, and why one of them refuses to
@@ -407,7 +444,8 @@ platform support</a>" }
                 Layout.alignment: Qt.AlignVCenter
 
                 SelectableText {
-                    text: root.tab === "monitor" ? "Monitor" : "Config"
+                    text: root.tab === "monitor" ? "Monitor"
+                        : root.tab === "config"  ? "Config" : "Dev"
                     font.pixelSize: style.fontBody
                     // Not dimmed when it is a parent rather than the place
                     // you are - see Style.qml. What is left to say so is the
@@ -662,6 +700,21 @@ engine reads the system, this window renders it."
                 }
             }
 
+            // What the three rows above are. This was the `what` field of
+            // the info button that used to sit beside Close; inlining the
+            // panel and keeping only its why/if-wrong lost the half that
+            // says what you are looking at.
+            SelectableText {
+                Layout.fillWidth: true
+                textFormat: TextEdit.RichText
+                wrapMode: TextEdit.Wrap
+                font.pixelSize: style.fontBody
+                text: "<b>version</b> is the app's own version. <b>built</b> \
+is when this window's build was produced, in Amsterdam time. <b>engine</b> \
+is the address this window reads from, marked <i>unreachable</i> when \
+nothing answers there."
+            }
+
             // Inline, not behind an info button. An About dialog that needs
             // a second modal to explain itself is asking you to open a panel
             // to find out what the panel you are reading says - the same
@@ -719,6 +772,7 @@ window was told about.</li></ul>"
     Loader {
         anchors.fill: parent
         sourceComponent: root.tab === "config" ? configPage
+                       : root.tab === "dev"    ? devPage
                        : root.subject === ""   ? monitorPage
                        : subjectPage
     }
@@ -752,7 +806,17 @@ window was told about.</li></ul>"
         id: configPage
         ConfigPage {
             panels: root.panels
-            actions: root.actions
+            actions: root.machineActions()
+            apiBase: dash.apiBase
+            onRanAction: root.refresh()
+        }
+    }
+
+    Component {
+        id: devPage
+        DevPage {
+            panels: root.panels
+            actions: root.devActions()
             apiBase: dash.apiBase
             onRanAction: root.refresh()
         }
