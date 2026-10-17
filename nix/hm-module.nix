@@ -33,7 +33,16 @@ let
   # binary. Store paths all carry the same epoch mtime, so "newer" compares
   # the local binary against the generation symlink - the moment the installed
   # one was switched in.
-  launcher = pkgs.writeShellScript "nixdash-ui-launch" ''
+  # A package rather than a bare store path, so it lands in the profile at
+  # bin/nixdash-ui-launch and the Exec line below can name something STABLE.
+  #
+  # Xfce copies a .desktop file into ~/.config/xfce4/panel/launcher-N/ when
+  # you drag it onto the panel, freezing whatever Exec it held at that moment.
+  # A store path frozen there pins one build for ever: the panel kept starting
+  # a six-hour-old nixdash across several switches, so every "restart it and
+  # try again" handed back the same stale window while the tree moved on. The
+  # profile directory follows the generation, so the frozen copy stays right.
+  launcherPkg = pkgs.writeShellScriptBin "nixdash-ui-launch" ''
     set -u
 
     installed=${lib.getExe cfg.ui.package}
@@ -53,6 +62,10 @@ let
     exec "$installed" "$@"
   '';
 
+  # Where launcherPkg ends up once installed. Stable across generations,
+  # which is the whole point - see the comment on launcherPkg.
+  launcherPath = "${config.home.profileDirectory}/bin/nixdash-ui-launch";
+
   # Built once and used twice: as the menu entry and as the autostart file.
   # Referencing the generated entry by its runtime path instead would not
   # exist at evaluation time.
@@ -62,7 +75,11 @@ let
     comment = "NixOS config and monitoring";
     # The UI reads NIXDASH_PORT to find the engine, so the entry has to carry
     # whatever port the service was configured with.
-    exec = "env NIXDASH_PORT=${toString cfg.port} ${launcher}";
+    # The profile path, not the package's own store path. A store path here
+    # is correct
+    # only until the next switch, and anything that copies this entry keeps
+    # it long after that.
+    exec = "env NIXDASH_PORT=${toString cfg.port} ${launcherPath}";
     # Themed name, resolved from hicolor below - not an absolute path. The
     # icon is scalable, so the theme lookup is what lets a 24px panel and a
     # 48px menu each get a crisp render from the one SVG.
@@ -156,6 +173,9 @@ in
       ++ lib.optionals cfg.ui.enable [
         cfg.ui.package
         desktopItem
+        # Installed so that launcherPath above resolves, and so the launcher
+        # can be run by name from a shell like any other command.
+        launcherPkg
       ];
 
     # The icon, installed into the user's hicolor theme so `Icon=nixdash`
