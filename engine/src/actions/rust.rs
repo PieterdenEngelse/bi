@@ -16,10 +16,15 @@ pub struct RustTargets;
 
 const FENIX_SNIPPET: &str = r#"# A Rust toolchain with the Emscripten target, in your flake.
 #
-# nixpkgs' rustc ships std for the host only, so a cross build fails with
-# "can't find crate for `std`". fenix packages upstream Rust's per-target
+# nixpkgs' rustc ships std for the host only, so a cross build USING IT fails
+# with "can't find crate for `std`". fenix packages upstream Rust's per-target
 # std, which keeps the whole toolchain inside Nix - no rustup, which fights
 # Nix for control of ~/.rustup and PATH.
+#
+# Check it is your problem before pasting this. The reading behind it is of
+# the default toolchain. A project that already pins a cross toolchain in its
+# own devShell builds fine while this still reports the target absent - two
+# different rustcs, and only one of them was measured.
 
 inputs.fenix = {
   url = "github:nix-community/fenix";
@@ -76,10 +81,15 @@ const RUST_SRC_SNIPPET: &str = r#"# Standard library sources, so rust-analyzer c
 
 const LLD_SNIPPET: &str = r#"# lld, for wasm32-unknown-unknown.
 #
-# That target links with lld. Without it the build fails with
+# That target links with lld. Without it a build of THAT target fails with
 #   error: linker `lld` not found
 # which names the linker rather than the target, sending you to look in the
 # wrong place entirely. One package, not a toolchain change.
+#
+# Check it is your problem before pasting this. The reading behind it is of
+# the default toolchain, which is not necessarily the one you build with -
+# a project pinning its own toolchain in a devShell may already have lld, or
+# may not need it: the emscripten target links through emcc, not lld.
 
 pkgs.mkShell {
   packages = [ pkgs.lld ];
@@ -108,7 +118,7 @@ impl ActionProvider for RustTargets {
         if !has_em {
             out.push(Action {
                 id: "rust-emscripten-target".into(),
-                title: "No Emscripten target in the rustc on PATH".into(),
+                title: "Default toolchain has no Emscripten target".into(),
                 subject: Subject::Rust,
                 kind: ActionKind::Nix,
                 // Scoped to the rustc that was actually looked at. This said
@@ -116,11 +126,23 @@ impl ActionProvider for RustTargets {
                 // claim about every environment on the machine from a probe
                 // of exactly one - and it was wrong here, where the browser
                 // UI builds in a dev shell carrying its own toolchain.
+                // Scope matters more than the fact here. The fact is true
+                // and the conclusion people draw from it usually is not: a
+                // project that pins its own cross toolchain in a devShell
+                // builds fine while this still reports absent, because the
+                // two are different toolchains. Saying only "no emscripten
+                // target" invites "so I cannot build", which is the error
+                // headlines_claim_only_what_was_measured exists to prevent.
                 why: format!(
-                    "The rustc on PATH is {version}, which ships std for the \
-                     host only - it has no wasm32-unknown-emscripten. A Qt \
-                     for WebAssembly build started from this environment \
-                     would fail with \"can't find crate for `std`\"."
+                    "The rustc this service sees is {version}, which ships \
+                     std for the host only - no wasm32-unknown-emscripten. A \
+                     cross build started from THIS environment would fail \
+                     with \"can't find crate for `std`\".\n\n\
+                     That is a statement about the default toolchain, not \
+                     about whether a wasm build is possible here. A project \
+                     that pins a toolchain carrying the target in its own \
+                     devShell is unaffected - this panel cannot see into one, \
+                     so check the flake before acting on this."
                 ),
                 info: ActionInfo {
                     what: "Adds a fenix toolchain carrying the Emscripten \
@@ -152,14 +174,22 @@ impl ActionProvider for RustTargets {
         if has_wasm && !has_lld {
             out.push(Action {
                 id: "rust-lld".into(),
-                title: "wasm32-unknown-unknown is installed but lld is not".into(),
+                title: "Default toolchain: wasm32-unknown-unknown, but no lld".into(),
                 subject: Subject::Rust,
                 kind: ActionKind::Nix,
-                why: "That target links with lld, which is not on PATH. The \
-                      build will fail at link time."
+                why: "That target links with lld, which is not on PATH, so a \
+                      wasm32-unknown-unknown build started from THIS \
+                      environment fails at link time.\n\n\
+                      Two things narrow that. It is the default toolchain \
+                      being measured, not whatever a project's devShell \
+                      provides. And it is specific to \
+                      wasm32-unknown-unknown: the emscripten target links \
+                      through emcc instead and does not need lld at all."
                     .into(),
                 info: ActionInfo {
-                    what: "Adds the lld linker to the dev shell.",
+                    what: "Adds the lld linker to a dev shell. Needed only for \
+                           wasm32-unknown-unknown - the emscripten target \
+                           links through emcc and never calls lld.",
                     if_wrong: "The error names the linker, not the target, so \
                                it reads like a toolchain problem. It is one \
                                missing package.",

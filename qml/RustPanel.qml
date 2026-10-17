@@ -37,11 +37,26 @@ Panel {
         anchors.fill: parent
         spacing: 5
 
+        // The verdict names the TOOLCHAIN it measured, not a capability.
+        //
+        // It used to read "Cannot build Qt for WebAssembly", which was false
+        // on this machine and false in a way the project has a test for. The
+        // reading behind it is `rustc --print target-libdir` against the
+        // DEFAULT toolchain - nixpkgs' rustc, the one the background service
+        // sees. The browser UI is never built with that one: flake.nix pins a
+        // separate toolchain carrying the emscripten std and `nix develop
+        // .#wasm` is where ui-wasm/build.sh runs. So the panel measured one
+        // environment and pronounced on another, while the Suggested action
+        // beside it correctly told you to go ahead and build.
+        //
+        // Same error as "no Qt in this environment" from an app drawn by
+        // libQt6Qml - see headlines_claim_only_what_was_measured. That test
+        // greps the engine's headlines and cannot see a string composed here.
         SelectableText {
             width: parent.width
-            text: !root.present ? "No Rust on PATH"
-                : root.hasEm ? "Can build Qt for WebAssembly"
-                : "Cannot build Qt for WebAssembly"
+            text: !root.present ? "No rustc on PATH"
+                : root.hasEm ? "Default toolchain has the emscripten target"
+                : "Default toolchain has no emscripten target"
             font.pixelSize: style.fontBody
             font.bold: true
             color: !root.present ? palette.text : root.hasEm ? style.okText : style.warnText
