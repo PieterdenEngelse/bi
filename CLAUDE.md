@@ -200,9 +200,22 @@ within 60 lines. Exemptions need a written reason, and a second test fails if
 the reason is under 60 characters.
 
 **Three questions, always**: what it is · why it matters · what a wrong value
-looks like. Bodies are rich text — `<b>`, `<tt>` for commands and paths,
-`<ul>`, `<table>`, and `<a href>` links that open in a browser. Long panels
-split into tabs via `sections: [{ title, body }]`.
+looks like.
+
+**A floor, not a template.** The three have to be *answered* somewhere in the
+panel; they do not have to be its shape, and nothing says a panel may contain
+only them. Open with prose if prose is what helps. Lead with the reading
+itself. Put a table where a table is clearer — which package ships which
+tool, the three places qmake is looked for. The About dialog describes its
+own rows before explaining them, and that ordering is right for it.
+
+What the rule is actually against is a panel that answers *fewer* than three
+— the one that says what a thing is and leaves you to guess why it matters or
+what a wrong value looks like.
+
+Bodies are rich text — `<b>`, `<tt>` for commands and paths, `<ul>`,
+`<table>`, and `<a href>` links that open in a browser. Long panels split
+into tabs via `sections: [{ title, body }]`.
 
 **Explain the mechanism, not the label.** "Shows memory usage" is a wasted
 panel. "Most of 'used' is reclaimable cache, so this number looks alarming and
