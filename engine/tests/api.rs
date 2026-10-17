@@ -302,6 +302,76 @@ async fn headlines_claim_only_what_was_measured() {
     }
 }
 
+/// The same rule, applied to the verdicts the UI composes for itself.
+///
+/// `headlines_claim_only_what_was_measured` greps the API payload, so it sees
+/// every headline the engine produces and none of the ones QML builds. Both
+/// the Qt and Rust panels build theirs locally - `QtPanel.verdict` and the
+/// bold line at the top of `RustPanel` - which puts the two most prominent
+/// claims in the app outside the test written to govern exactly them.
+///
+/// Reads `../qml` as data, like qml_info.rs, and shares `claims_absence_of`
+/// with the API test on purpose: one definition of the rule, or the two
+/// corpora drift into disagreeing about what the rule is.
+///
+/// Scoped to `text:` and `verdict:`. The explanation fields are prose ABOUT
+/// claims and legitimately quote the wrong ones - "'No qmake on PATH' does
+/// NOT mean Qt is absent" has to be sayable.
+#[test]
+fn qml_verdicts_claim_only_what_was_measured() {
+    let qml = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("engine/ has a parent")
+        .join("qml");
+
+    let mut checked = 0usize;
+    let mut failures = Vec::new();
+
+    for entry in std::fs::read_dir(&qml).expect("qml/ is readable").flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("qml") {
+            continue;
+        }
+        let name = path.file_name().unwrap().to_string_lossy().to_string();
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+
+        for (n, line) in text.lines().enumerate() {
+            let t = line.trim_start();
+            if !(t.starts_with("text:") || t.starts_with("verdict:")) {
+                continue;
+            }
+            // Only the literals on this line; a wrapped ternary continues
+            // below and is caught on its own line.
+            for lit in line.split('"').skip(1).step_by(2) {
+                checked += 1;
+                for claim in ["no qt", "no rust", "qt is not", "rust is not"] {
+                    if claims_absence_of(lit, claim) {
+                        failures.push(format!(
+                            "{name}:{} - verdict {lit:?} claims {claim:?}. Name the \
+                             TOOL that is missing (qmake, rustc), not the \
+                             technology: absence of a build tool is not absence \
+                             of the technology, and this is the most visible \
+                             line in the panel.",
+                            n + 1
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    assert!(
+        checked > 20,
+        "matched only {checked} verdict literals - scanner broken"
+    );
+    assert!(
+        failures.is_empty(),
+        "{} of {checked} UI verdicts overclaim:\n\n{}",
+        failures.len(),
+        failures.join("\n\n")
+    );
+}
+
 /// The matcher has now been wrong in both directions - too loose, then too
 /// strict - so its own behaviour is pinned rather than left to be rediscovered
 /// the next time a headline is reworded.
