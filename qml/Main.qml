@@ -517,39 +517,77 @@ everything here will look untouched." }
                 ]
             }
 
-            // Which build this window is. Last in the row, so it sits in the
-            // top-right corner past the Refresh info button.
+            // "About", as a link with the word on it.
             //
-            // A link rather than a fourth InfoButton: those explain the
-            // control they sit beside, and this explains the program. It is
-            // also the string you paste into a bug report, so the gesture is
-            // ClickOrSelectArea's - click opens About, drag selects the
-            // version - instead of a MouseArea that would swallow the drag.
+            // The version stamp beside it used to BE this control: blue text
+            // with a hover tint and nothing else saying so. Nobody read it as
+            // clickable - it reads as a label, because it is one - so the
+            // gesture went undiscovered while the stamp carried the cost of
+            // being two things at once.
             Item {
-                // Fills the bar rather than hugging the glyphs. The hit area
-                // used to be exactly buildText's bounding box - measured at
-                // 158x14 - leaving a dead band above and below it in a ~36px
-                // toolbar that swallowed a drag with no feedback at all: no
-                // highlight, no About, nothing on the clipboard. The text
-                // still sits where it did; only the target grew.
-                Layout.fillHeight: true
-                Layout.rightMargin: 2
-                implicitWidth: buildText.implicitWidth
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: aboutText.implicitWidth
+                implicitHeight: aboutText.implicitHeight
 
-                SelectableText {
-                    id: buildText
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: "v" + dash.version + " \u00b7 " + dash.built
-                    color: buildArea.hovered ? style.linkHover : style.link
+                Text {
+                    id: aboutText
+                    text: "About"
+                    // The header's own colour, not the link blue. Nothing
+                    // else up here is blue: the breadcrumb that walks back
+                    // out of a subject is ordinary text with a pointing
+                    // cursor, and so is the engine address. style.link is
+                    // for <a href> inside info panels, and it doubles as
+                    // palette.highlight - so a blue word would have sat six
+                    // pixels from text that turns the same blue when
+                    // selected, meaning two different things at once.
+                    //
+                    // Text defaults to BLACK rather than to the palette, the
+                    // same trap SelectableText documents, so this is set
+                    // explicitly rather than left out.
+                    color: palette.text
+                    // The hover cue the crumbs do without. The word carries
+                    // the meaning; this only confirms it is pressable before
+                    // you commit to pressing it.
+                    font.underline: aboutArea.containsMouse
                     font.pixelSize: root.chromeFont
                 }
 
-                ClickOrSelectArea {
-                    id: buildArea
+                MouseArea {
+                    id: aboutArea
                     anchors.fill: parent
-                    textItem: buildText
-                    onActivated: about.open()
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: about.open()
                 }
+            }
+
+            InfoButton {
+                title: "About"
+                what: "Opens a panel naming this window's <b>version</b>, the \
+<b>date it was built</b>, and the address it reads the app's background \
+service from."
+                why: "The build date is the only thing that tells two of these \
+windows apart - the version number is <tt>0.1.0</tt> in every build ever \
+made. It is how you check that the window in front of you contains a change \
+you just made, rather than being an older one left open behind it."
+                ifWrong: "A date older than your last rebuild means this \
+window is a previous build still running: close it and start it again, \
+because nothing in a running window updates itself. The background service \
+is a separate program and can be a different build again, which the panel \
+also names - that is usually why a change seems not to have taken."
+            }
+
+            // Which build this window is - and ordinary selectable text now.
+            //
+            // The About gesture moved to the link beside it, so this is a
+            // plain value: it selects and copies exactly like every other
+            // value in the window, with no click to arbitrate against and no
+            // threshold deciding which of the two you meant.
+            SelectableText {
+                Layout.alignment: Qt.AlignVCenter
+                Layout.rightMargin: 2
+                text: "v" + dash.version + " \u00b7 " + dash.built
+                font.pixelSize: root.chromeFont
             }
         }
     }
