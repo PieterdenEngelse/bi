@@ -662,34 +662,32 @@ engine reads the system, this window renders it."
                 }
             }
 
-            RowLayout {
+            // Inline, not behind an info button. An About dialog that needs
+            // a second modal to explain itself is asking you to open a panel
+            // to find out what the panel you are reading says - the same
+            // recursion InfoButton.qml is exempted from in qml_info.rs.
+            SelectableText {
                 Layout.fillWidth: true
-                spacing: 8
-
-                Item { Layout.fillWidth: true }
-
-                Button {
-                    text: "Close"
-                    onClicked: about.close()
-                }
-                // The dates are the point of this dialog, and a wrong one is
-                // the usual explanation for "my change is not in here".
-                InfoButton {
-                    title: "About this build"
-                    what: "Which build you are looking at. <b>version</b> is \
-the app's own version; <b>built</b> is the day this window's build was \
-produced, in Amsterdam time; <b>engine</b> is the address this window reads \
-from, marked <i>unreachable</i> when nothing answers there."
-                    why: "There is no other way to tell. A store path's \
-timestamp is pinned to the epoch by design, and when a process started says \
-when you opened the window - not when its binary was made. So <b>built</b> is \
-the only answer to \"is this the code I just wrote?\", which is the question \
-that costs an afternoon when two identical-looking windows are hours \
-apart.<br><br>\
+                textFormat: TextEdit.RichText
+                wrapMode: TextEdit.Wrap
+                font.pixelSize: style.fontBody
+                text: "<b>Why the date is the useful line.</b> There is no \
+other way to tell which build this is. A store path's timestamp is pinned to \
+the epoch by design, and when a process started says when you opened the \
+window - not when its binary was made. So <b>built</b> is the only answer to \
+\"is this the code I just wrote?\", which is the question that costs an \
+afternoon when two identical-looking windows are hours apart.<br><br>\
 The background service shown as <b>engine</b> is a separate binary and can be \
 a different build entirely; its address is here so the two can be told apart \
 rather than assumed to match."
-                    ifWrong: "<ul>\
+            }
+
+            SelectableText {
+                Layout.fillWidth: true
+                textFormat: TextEdit.RichText
+                wrapMode: TextEdit.Wrap
+                font.pixelSize: style.fontBody
+                text: "<b>If it looks wrong</b><ul>\
 <li><b>Older than your last build.</b> You are running the installed copy. \
 The menu entry and the panel launcher start whichever is newer - a local \
 <tt>cargo build</tt> only wins once it is newer than the generation \
@@ -701,7 +699,18 @@ or it is simply not in the bundle.</li>\
 <li><b>engine marked unreachable.</b> Nothing is listening on that address: \
 the background service is stopped, or running on a different port than this \
 window was told about.</li></ul>"
-                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                Item { Layout.fillWidth: true }
+
+                // One line so qml_info.rs can exempt this button precisely:
+                // its marker is a substring of the declaration line, and a
+                // bare `Button {` would exempt Refresh along with it.
+                Button { text: "Close"; onClicked: about.close() }
             }
         }
     }

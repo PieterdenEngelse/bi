@@ -48,6 +48,15 @@ const EXEMPT: &[(&str, &str)] = &[
          panel explaining how to leave itself.",
     ),
     (
+        "Main.qml:about.close()",
+        "The About dialog's Close button. The dialog now carries its own \
+         explanation inline - why the build date is the only reliable answer \
+         to \"is this the code I just wrote?\", and what each wrong-looking \
+         value means. An info button beside it would open a second modal to \
+         explain the modal you are already reading, which is the recursion \
+         InfoButton.qml is exempted for just below.",
+    ),
+    (
         "InfoButton.qml:*",
         "InfoButton IS the explanation mechanism. Its own trigger and its \
          panel's close button cannot explain themselves without recursion.",
